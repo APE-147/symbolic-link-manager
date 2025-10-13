@@ -30,4 +30,9 @@ Format based on Keep a Changelog; versions follow SemVer.
 - **BREAKING CHANGE**: Renamed CLI command from `link` to `lk` to avoid conflict with Unix system's built-in `/bin/link` command
 - Updated default config path from `~/.config/link/` to `~/.config/lk/`
 - TUI now handles large lists without overflow (previously items became invisible)
+- **CRITICAL FIX**: TUI table alignment - Fixed severe misalignment bug causing diagonal/zigzag display pattern
+  - Root cause: Each row was creating its own Table object with independent borders/padding
+  - Solution: Create single Table per group, add all rows to that table, then print once
+  - Result: Perfect column alignment across all rows in each group
+  - Added regression tests: `tests/test_tui_alignment.py` (2 tests verifying single table per group)
 

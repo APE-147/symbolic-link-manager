@@ -36,6 +36,12 @@
   * 测试命令：`./tests/create_test_symlinks.sh && lk --target /tmp/symlink_test_<timestamp>` (验证滚动流畅，指示器正确，不同终端宽度适配)
   * 证据：All existing tests pass (7/7); Package reinstalled; TUI_SCROLLING.md documentation created; Test script created
 
+  * [x] Task-4.2.1: 修复 TUI 表格对齐严重错误 (CRITICAL BUG FIX) - Commit: (pending)
+    * 要求：修复严重的对齐问题导致的对角线/锯齿状显示模式；每行必须在同一表格中对齐；所有列必须完美对齐
+    * 说明：根本原因是每行创建独立的 Table 对象；解决方案是每组创建一个 Table，将所有行添加到该表，然后一次性打印；修改 `_render_list()` 引入 `current_table` 变量跟踪当前活动表格
+    * 测试命令：`pytest tests/test_tui_alignment.py -v && lk --target /Users/niceday/Developer/Cloud/Dropbox/-Code-/Scripts` (验证所有行完美对齐，无对角线模式)
+    * 证据：All 9 tests pass (7 original + 2 new alignment tests); Perfect alignment verified; Critical bug fixed
+
 * [ ] Task-5: 实现目标路径查看与修改功能
   * 要求：选中链接后显示当前目标路径；提供输入框允许用户输入新目标路径；验证新路径有效性（父目录存在、无冲突）
   * 说明：使用 readlink 获取当前目标；新路径输入后进行预检查（父目录、权限、已存在文件/目录处理）
