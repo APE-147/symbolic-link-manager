@@ -16,7 +16,7 @@ Users with large codebases often create symbolic links to reference files/direct
 2. **Organization**: Classify symlinks by project for easier navigation
 3. **Inspection**: View current symlink targets interactively
 4. **Maintenance**: Update symlink targets safely with backup/rollback
-5. **Accessibility**: Provide global CLI command `link` for easy access
+5. **Accessibility**: Provide global CLI command `lk` for easy access
 
 ## Non-Goals
 
@@ -77,22 +77,22 @@ class SymlinkInfo:
 **CLI Commands**:
 ```bash
 # Interactive mode (default)
-link
+lk
 
 # Specify target directory
-link --target /path/to/directory
+lk --target /path/to/directory
 
 # Specify classification config
-link --config /path/to/config.md
+lk --config /path/to/config.md
 
 # Dry-run mode (no modifications)
-link --dry-run
+lk --dry-run
 
 # Version info
-link --version
+lk --version
 
 # Help
-link --help
+lk --help
 ```
 
 **Interactive TUI Flow**:
@@ -149,11 +149,11 @@ link --help
 
 ### 5. Global Command
 **Positive**:
-- Given pipx installation, when `link` is run, then command is found in PATH
-- Given `link --version`, when run, then version is displayed
+- Given pipx installation, when `lk` is run, then command is found in PATH
+- Given `lk --version`, when run, then version is displayed
 
 **Negative**:
-- Given missing dependencies, when `link` runs, then helpful error message is shown
+- Given missing dependencies, when `lk` runs, then helpful error message is shown
 
 ## Observability
 
@@ -219,7 +219,7 @@ link --help
 - [ ] Basic symlink scanner
 - [ ] Simple classification (config parsing)
 - [ ] Interactive TUI (read-only)
-- [ ] Global `link` command
+- [ ] Global `lk` command
 
 ### Phase 2: Safety & Modification (Target: Day 3-4)
 - [ ] Modification logic with backup
@@ -238,7 +238,7 @@ link --help
 ### Scenario 1: First-time User Discovers Symlinks
 ```gherkin
 Given I have never used the tool before
-When I run `link` for the first time
+When I run `lk` for the first time
 Then I see a welcome message
 And a list of all symlinks in the default directory
 And they are grouped by "unclassified"
@@ -247,8 +247,8 @@ And they are grouped by "unclassified"
 ### Scenario 2: User Creates Classification Config
 ```gherkin
 Given I want to organize symlinks by project
-When I create ~/.config/link/projects.md with project patterns
-And run `link --config ~/.config/link/projects.md`
+When I create ~/.config/lk/projects.md with project patterns
+And run `lk --config ~/.config/lk/projects.md`
 Then symlinks are grouped by project name
 And unclassified symlinks appear at the bottom
 ```
@@ -256,7 +256,7 @@ And unclassified symlinks appear at the bottom
 ### Scenario 3: User Updates Symlink Target
 ```gherkin
 Given I have a symlink pointing to an old location
-When I select the symlink and press Enter
+When I select the symlink and press Enter in lk
 And input a new target path
 And confirm the change
 Then the symlink is backed up
@@ -275,7 +275,7 @@ And I can manually restore the original target
 ### Scenario 5: Tool Handles Broken Symlink
 ```gherkin
 Given I have a symlink pointing to a non-existent target
-When I run `link`
+When I run `lk`
 Then the symlink appears with a "BROKEN" indicator
 And I can select it to update to a valid target
 ```
@@ -283,7 +283,7 @@ And I can select it to update to a valid target
 ### Scenario 6: Dry-run Mode Prevents Modifications
 ```gherkin
 Given I want to test without making changes
-When I run `link --dry-run`
+When I run `lk --dry-run`
 Then I can navigate and view symlinks
 But modification actions are disabled
 And a banner shows "DRY-RUN MODE"
@@ -292,18 +292,18 @@ And a banner shows "DRY-RUN MODE"
 ## Open Questions
 
 1. **Config file location**: Should it be:
-   - `~/.config/link/projects.md` (XDG standard)
-   - `~/.link-projects.md` (home directory)
+   - `~/.config/lk/projects.md` (XDG standard)
+   - `~/.lk-projects.md` (home directory)
    - User-specified only via `--config`?
 
-   **Decision**: Support all three (priority: --config > ~/.config/link/projects.md > fallback to unclassified)
+   **Decision**: Support all three (priority: --config > ~/.config/lk/projects.md > fallback to unclassified)
 
 2. **Backup retention**: How long to keep backups?
    - Keep all backups (manual cleanup)
    - Auto-delete after N days
    - Limit to last N backups per symlink
 
-   **Decision**: Keep all, provide `link --clean-backups` command (future)
+   **Decision**: Keep all, provide `lk --clean-backups` command (future)
 
 3. **Max recursion depth**: Should we limit scan depth?
    **Decision**: Set default max_depth=20, make configurable via `--max-depth`
