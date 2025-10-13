@@ -11,7 +11,12 @@ Quick Start
 1. Create a virtualenv (or use `pipx`).
 2. Install in editable mode: `pip install -e .[dev]`
 3. Check CLI is wired: `lk --version`.
-4. Launch TUI: `lk` (arrow keys navigate; Enter shows details; `e` edits target - validation only).
+4. Launch TUI: `lk`
+   - Arrow keys (or j/k) navigate
+   - Press `/` to search/filter items
+   - Preview pane auto-shows symlink details
+   - Enter shows full details with action menu
+   - `e` edits target (validation only)
 
 Goals
 -----
@@ -24,7 +29,8 @@ Tech Stack
 ---------
 - Python 3.9+
 - click (CLI)
-- rich (terminal UI)
+- rich (terminal UI rendering)
+- simple-term-menu (interactive navigation)
 - pytest, ruff (dev tools)
 
 Editing a Target (Validation Only)
