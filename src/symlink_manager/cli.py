@@ -68,6 +68,20 @@ def _default_config_path() -> Optional[Path]:
     multiple=True,
     help="Exclude pattern (can be specified multiple times).",
 )
+@click.option(
+    "include_files",
+    "--files",
+    is_flag=True,
+    default=False,
+    help="Include file symlinks (default: directories only).",
+)
+@click.option(
+    "include_garbled",
+    "--include-garbled",
+    is_flag=True,
+    default=False,
+    help="Include symlinks with garbled names (default: filter them out).",
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -77,6 +91,8 @@ def cli(
     no_filter: bool,
     include_patterns: Tuple[str, ...],
     exclude_patterns: Tuple[str, ...],
+    include_files: bool,
+    include_garbled: bool,
 ) -> None:
     """Symlink Manager CLI.
 
@@ -109,6 +125,11 @@ def cli(
                         cli_include=list(include_patterns) if include_patterns else None,
                         cli_exclude=list(exclude_patterns) if exclude_patterns else None,
                     )
+                # Apply CLI flags for directory-only and garbled filtering
+                if include_files:
+                    filter_rules.directories_only = False
+                if include_garbled:
+                    filter_rules.filter_garbled = False
             except ValueError as e:
                 click.echo(f"[error] Filter config error: {e}", err=True)
                 ctx.exit(2)

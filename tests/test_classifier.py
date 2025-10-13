@@ -31,11 +31,11 @@ def test_parse_markdown_config_basic() -> None:
 
 def test_classify_with_relative_patterns_and_first_match_wins(tmp_path: Path) -> None:
     # Layout
-    # tmp/alpha/foo.ln -> tmp/target.txt
-    # tmp/beta/bar.ln  -> tmp/target.txt
-    # tmp/misc/zzz.ln  -> tmp/target.txt
-    target = tmp_path / "target.txt"
-    target.write_text("x")
+    # tmp/alpha/foo.ln -> tmp/target_dir
+    # tmp/beta/bar.ln  -> tmp/target_dir
+    # tmp/misc/zzz.ln  -> tmp/target_dir
+    target = tmp_path / "target_dir"
+    target.mkdir()
 
     (tmp_path / "alpha").mkdir()
     (tmp_path / "beta").mkdir()
@@ -76,8 +76,8 @@ def test_classify_with_relative_patterns_and_first_match_wins(tmp_path: Path) ->
 
 def test_missing_or_invalid_config_falls_back_to_unclassified(tmp_path: Path) -> None:
     # Create a single symlink
-    target = tmp_path / "t.txt"
-    target.write_text("1")
+    target = tmp_path / "t_dir"
+    target.mkdir()
     link = tmp_path / "L"
     os.symlink(target, link)
 

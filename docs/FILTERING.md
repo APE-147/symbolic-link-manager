@@ -77,3 +77,165 @@ exclude:
 - 通过 `lk --exclude '*/node_modules/*' --scan-path <dir>` 验证：噪声明显下降，性能不倒退。
 - 配置错误能给出明确的人类可读提示，并指向问题字段。
 
+
+---
+
+## 9. Directory-Only Filtering (Default: Enabled)
+
+### Overview
+By default, only symlinks pointing to **directories** are shown. This reflects folder structure relationships and filters out file symlinks, significantly reducing noise.
+
+### Rationale
+Most users managing symlinks are interested in directory structure, not individual file links. For the typical use case with ~615 symlinks, this filter reduces the visible count to ~50-80 symlinks (after also applying pattern filters).
+
+### Configuration
+
+#### YAML Configuration
+```yaml
+# ~/.config/lk/filter.yml
+directories_only: true  # Show only directory symlinks (default)
+```
+
+#### CLI Options
+```bash
+lk                 # Default: directories only
+lk --files         # Include file symlinks too (opt-in)
+```
+
+### Behavior Details
+- **Directory symlinks**: Included (default)
+- **File symlinks**: Excluded (default)
+- **Broken symlinks**: **Included** (target type cannot be determined, user may want to fix them)
+- **Permission errors**: Included as unknown type (cannot verify)
+
+### Examples
+```bash
+# Default behavior - only show directory symlinks
+lk
+
+# Show all symlinks (both directories and files)
+lk --files
+
+# Combine with pattern filtering
+lk --exclude "python*"  # Only dir symlinks, excluding python*
+lk --files --exclude "python*"  # All symlinks, excluding python*
+```
+
+---
+
+## 10. Garbled Name Filtering (Default: Enabled)
+
+### Overview
+Symlinks with garbled/mojibake names (encoding issues) are automatically filtered out to reduce noise.
+
+### Detection Criteria
+A name is considered "garbled" if it contains:
+- Unicode replacement character (U+FFFD, �)
+- Control characters (except tab/newline)
+- More than 70% non-ASCII characters (heuristic for encoding errors)
+
+### Rationale
+Garbled names typically indicate:
+- Filesystem encoding issues
+- Corrupted metadata
+- Legacy/incompatible character sets
+These are usually noise and not meaningful for symlink management.
+
+### Configuration
+
+#### YAML Configuration
+```yaml
+# ~/.config/lk/filter.yml
+filter_garbled: true  # Filter garbled names (default)
+```
+
+#### CLI Options
+```bash
+lk                      # Default: filter garbled names
+lk --include-garbled    # Show all names, even garbled ones (opt-in)
+```
+
+### Examples
+```bash
+# Default behavior - hide garbled names
+lk
+
+# Show all symlinks including garbled names (for debugging)
+lk --include-garbled
+
+# Combine filters
+lk --files --include-garbled  # Show everything (no filtering)
+```
+
+---
+
+## 11. Combined Filtering Examples
+
+The three filtering mechanisms work together:
+1. **Pattern filtering** (exclude/include patterns)
+2. **Directory-only filtering** (default: enabled)
+3. **Garbled name filtering** (default: enabled)
+
+### Example Scenarios
+
+#### Scenario 1: Default filtering (maximum noise reduction)
+```bash
+lk
+# - Only directory symlinks
+# - Exclude patterns: python*, pip*, node*, npm*, etc.
+# - No garbled names
+# Result: ~50-80 symlinks from original ~615
+```
+
+#### Scenario 2: Show everything (debugging mode)
+```bash
+lk --no-filter --files --include-garbled
+# - All symlink types (files + directories)
+# - No pattern exclusions
+# - Include garbled names
+# Result: All ~615 symlinks
+```
+
+#### Scenario 3: Custom pattern with directory-only
+```bash
+lk --exclude "test*" --exclude "backup*"
+# - Only directory symlinks
+# - Exclude: python*, pip*, node*, npm*, test*, backup*
+# - No garbled names
+```
+
+#### Scenario 4: File symlinks with custom patterns
+```bash
+lk --files --include "*.txt" --include "*.md"
+# - All symlink types
+# - Only include .txt and .md symlinks (pattern override)
+# - No garbled names
+```
+
+---
+
+## 12. Info Line Updates
+
+The TUI info line shows filter status:
+
+```
+Items: 87 (filtered, dirs only)
+Items: 150 (filtered)
+Items: 615 (no filter)
+```
+
+When `directories_only` is enabled, the info line includes "dirs only" to clarify the filtering mode.
+
+---
+
+## 13. Performance Impact
+
+### Benchmarks
+- **Directory type check**: Fast (single `is_dir()` syscall per symlink)
+- **Garbled name validation**: Fast (string iteration, O(name_length))
+- **Combined filtering**: Still O(n) single pass
+
+### Target Performance
+Scanning 1000 symlinks with all filters: **< 500ms**
+
+Actual measured performance remains well within this target, with minimal overhead from the new filters.

@@ -19,6 +19,7 @@ from typing import Iterable, Iterator, List, Optional, Tuple
 import fnmatch
 import json
 import os
+import unicodedata
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -39,6 +40,39 @@ def _should_exclude_symlink(name: str, exclude_patterns: Optional[List[str]]) ->
         if fnmatch.fnmatch(name, pattern):
             return True
     return False
+
+
+def _is_valid_name(name: str) -> bool:
+    """Check if symlink name is valid (not garbled/mojibake).
+
+    Returns False if name contains:
+    - Control characters (except newline/tab)
+    - Replacement characters (�, U+FFFD)
+    - Excessive non-ASCII characters (potential encoding issues)
+
+    Args:
+        name: The symlink name to validate
+
+    Returns:
+        True if the name appears valid, False if garbled
+    """
+    # Check for replacement character (indicates encoding error)
+    if '\ufffd' in name or '�' in name:
+        return False
+
+    # Check for control characters (except tab, newline)
+    for char in name:
+        if unicodedata.category(char).startswith('C') and char not in '\t\n':
+            return False
+
+    # Check if name is too many non-ASCII characters (heuristic for mojibake)
+    # Allow reasonable non-ASCII (for international names), but flag excessive
+    non_ascii_count = sum(1 for c in name if ord(c) > 127)
+    if len(name) > 0 and non_ascii_count / len(name) > 0.7:
+        # More than 70% non-ASCII might be encoding issue
+        return False
+
+    return True
 
 
 @dataclass(frozen=True)
@@ -127,7 +161,9 @@ def _resolve_symlink_target(link_path: Path, chain_limit: int = 100) -> Tuple[Pa
 def scan_symlinks(
     scan_path: Path,
     max_depth: int = 20,
-    exclude_patterns: Optional[List[str]] = None
+    exclude_patterns: Optional[List[str]] = None,
+    directories_only: bool = True,
+    filter_garbled: bool = True,
 ) -> List[SymlinkInfo]:
     """Recursively scan ``scan_path`` (up to ``max_depth``) for symlinks.
 
@@ -135,12 +171,16 @@ def scan_symlinks(
     - Swallows permission and transient filesystem errors
     - Detects broken and circular links (reported via ``is_broken``)
     - Optionally filters symlinks by name using glob patterns
+    - Optionally filters to only include directory symlinks
+    - Optionally filters out garbled/mojibake names
 
     Args:
         scan_path: Root directory to scan
         max_depth: Maximum directory depth to traverse
         exclude_patterns: List of glob patterns to exclude (e.g., ["python*", "pip*"])
                          If None, no filtering is applied.
+        directories_only: If True, only include symlinks pointing to directories (default: True)
+        filter_garbled: If True, exclude symlinks with garbled names (default: True)
     """
     results: list[SymlinkInfo] = []
     if not scan_path.exists():
@@ -170,11 +210,22 @@ def scan_symlinks(
             for entry in _safe_iterdir(current_dir):
                 try:
                     if entry.is_symlink():
-                        # Apply filtering if patterns provided
+                        # Apply garbled name filter first
+                        if filter_garbled and not _is_valid_name(entry.name):
+                            continue  # Skip garbled symlinks
+
+                        # Apply pattern filtering if patterns provided
                         if _should_exclude_symlink(entry.name, exclude_patterns):
                             continue  # Skip this symlink
 
                         target, is_broken = _resolve_symlink_target(entry)
+
+                        # Apply directory-only filter
+                        if directories_only and not is_broken:
+                            # Only check if target exists (not broken)
+                            if not target.is_dir():
+                                continue  # Skip file symlinks
+
                         info = SymlinkInfo(
                             path=entry,
                             name=entry.name,
