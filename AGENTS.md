@@ -102,6 +102,12 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 16:34 - Project scaffolding (src-layout)
+- Added `pyproject.toml` (Python ≥3.9; deps: click, rich; dev: pytest, ruff; console script `link`).
+- Created package skeleton `src/symlink_manager/` with `cli.py`, `core/`, `services/`, `utils/` and `__init__` files.
+- Added `README.md` and `CHANGELOG.md` placeholders.
+- Next: wire scanner/classifier stubs to CLIs, add tests and data dirs.
+
 ### 2025-10-13 00:00 - Cycle 1 initialized
 - Created docs baseline: REQUIRES.md (user requirements), PLAN.md (Cycle 1 with 8 decision questions), TASKS.md (8 top-level tasks)
 - Created AGENTS.md with project snapshot and definitions
@@ -143,4 +149,3 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 **Performance Baselines**: (pending)
 **Screenshots**: (pending)
 **Build Artifacts**: (pending)
-
