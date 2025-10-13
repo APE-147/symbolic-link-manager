@@ -27,20 +27,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 console = Console(stderr=True)
 
 
-def _should_exclude_symlink(name: str, exclude_patterns: Optional[List[str]]) -> bool:
-    """Check if a symlink name matches any exclusion pattern.
-
-    Uses fnmatch for glob-style pattern matching.
-    """
-    if not exclude_patterns:
-        return False
-
-    for pattern in exclude_patterns:
-        if fnmatch.fnmatch(name, pattern):
-            return True
-    return False
-
-
 @dataclass(frozen=True)
 class SymlinkInfo:
     path: Path
@@ -170,10 +156,6 @@ def scan_symlinks(
             for entry in _safe_iterdir(current_dir):
                 try:
                     if entry.is_symlink():
-                        # Apply filtering if patterns provided
-                        if _should_exclude_symlink(entry.name, exclude_patterns):
-                            continue  # Skip this symlink
-
                         target, is_broken = _resolve_symlink_target(entry)
                         info = SymlinkInfo(
                             path=entry,

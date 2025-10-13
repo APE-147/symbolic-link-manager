@@ -35,6 +35,7 @@ from ..core.classifier import (
     classify_symlinks,
     load_markdown_config,
 )
+from ..services.validator import validate_target_change, ValidationResult
 
 
 console = Console()
@@ -81,6 +82,8 @@ def _read_key() -> str:
         return "ESC"
     if ch1 in ("\r", "\n"):
         return "ENTER"
+    if ch1 == "\x7f":  # Backspace on macOS/Linux
+        return "BACKSPACE"
     return ch1
 
 
@@ -153,18 +156,17 @@ def _move_cursor(rows: List[_Row], current: int, delta: int) -> int:
 def _calculate_viewport_size() -> int:
     """Calculate how many item rows can fit in the terminal viewport.
 
-    Reserves space for:
-    - Header (1 line)
-    - Info line (1 line)
-    - Help line (1 line)
-    - Rule (1 line)
-    - Scroll indicators (2 lines max)
-    - Footer help (1 line)
-    - Some padding (2 lines)
+    Fixed to 15 items per page for consistent pagination experience.
+    Users can scroll with arrow keys or j/k to see more items.
+
+    Falls back to fewer items if terminal is too small.
     """
     terminal_height = console.size.height
-    reserved_lines = 9
-    return max(5, terminal_height - reserved_lines)
+    reserved_lines = 9  # Header, help, indicators, etc.
+    max_possible = terminal_height - reserved_lines
+
+    # Prefer 15, but adapt if terminal is tiny
+    return min(15, max(5, max_possible))
 
 
 def _calculate_visible_range(
@@ -228,6 +230,7 @@ def _render_list(
     *,
     scan_path: Path,
     config_path: Optional[Path],
+    is_filtered: bool = False,
 ) -> None:
     console.clear()
 
@@ -246,11 +249,15 @@ def _render_list(
 
     # Header
     header = Text("Symbolic Link Manager — Read-only TUI", style="bold")
+    items_label = f"Items: {total_items}" + (" (filtered)" if is_filtered else "")
     info = Text(
-        f"Scan: {scan_path}  |  Config: {config_path or 'None'}  |  Items: {total_items}",
+        f"Scan: {scan_path}  |  Config: {config_path or 'None'}  |  {items_label}",
         style="dim",
     )
-    help_line = Text("↑/↓ or j/k to navigate • Enter to view • q/Esc to quit", style="cyan")
+    help_line = Text(
+        "↑/↓ or j/k navigate • Enter details • e edit target • q/Esc quit",
+        style="cyan",
+    )
     console.print(header)
     console.print(info)
     console.print(help_line)
@@ -298,7 +305,7 @@ def _render_list(
             current_table = Table(
                 show_header=True,
                 show_lines=False,
-                box=box.SIMPLE,
+                box=box.SQUARE,
                 pad_edge=False,
                 padding=(0, 1),
                 collapse_padding=True,
@@ -315,7 +322,7 @@ def _render_list(
             current_table = Table(
                 show_header=True,
                 show_lines=False,
-                box=box.SIMPLE,
+                box=box.SQUARE,
                 pad_edge=False,
                 padding=(0, 1),
                 collapse_padding=True,
@@ -353,7 +360,7 @@ def _render_list(
         console.print(Text(f"  ↓ {items_below_count} more below", style="dim cyan"))
 
 
-def _render_detail(item: SymlinkInfo, *, read_only: bool = True) -> None:
+def _render_detail(item: SymlinkInfo, *, read_only: bool = True, proposed: Optional[Path] = None, validation: Optional[ValidationResult] = None) -> None:
     console.clear()
     status = Text("Valid", style="green") if not item.is_broken else Text("Broken", style="red")
 
@@ -368,13 +375,35 @@ def _render_detail(item: SymlinkInfo, *, read_only: bool = True) -> None:
     body.append("Target Path:\n", style="bold cyan")
     body.append(f"  {item.target}\n\n", style="white")
 
+    if proposed is not None:
+        body.append("Proposed Target:\n", style="bold cyan")
+        body.append(f"  {proposed}\n\n", style="white")
+
     body.append("Status: ", style="bold cyan")
     body.append(status)
     body.append("\n\n")
 
+    if validation is not None:
+        if validation.ok:
+            body.append("Validation: ", style="bold green")
+            body.append("OK\n", style="green")
+        else:
+            body.append("Validation: ", style="bold red")
+            body.append("FAILED\n", style="red")
+
+        if validation.errors:
+            body.append("Errors:\n", style="bold red")
+            for e in validation.errors:
+                body.append(f"  - {e}\n", style="red")
+        if validation.warnings:
+            body.append("Warnings:\n", style="bold yellow")
+            for w in validation.warnings:
+                body.append(f"  - {w}\n", style="yellow")
+
+        body.append("\n", style="white")
+
     if read_only:
-        body.append("Modification: ", style="bold yellow")
-        body.append("Disabled in MVP (Task-6 will enable).\n", style="dim")
+        body.append("Hint: Press 'e' in the list to edit target.\n", style="dim")
     else:
         body.append("[Press 'e' to edit target]\n", style="dim")
 
@@ -389,14 +418,40 @@ def _render_detail(item: SymlinkInfo, *, read_only: bool = True) -> None:
 
 # ---- Public API -------------------------------------------------------------
 
-def run_tui(scan_path: Path, config_path: Optional[Path] = None, *, max_depth: int = 20) -> int:
-    """Run the interactive TUI. Returns exit code (0 normal, 1 on error)."""
+def run_tui(
+    scan_path: Path,
+    config_path: Optional[Path] = None,
+    *,
+    max_depth: int = 20,
+    filter_rules: Optional[object] = None,
+) -> int:
+    """Run the interactive TUI. Returns exit code (0 normal, 1 on error).
+
+    Args:
+        scan_path: Root directory to scan for symlinks
+        config_path: Path to Markdown classification config
+        max_depth: Maximum directory depth to scan
+        filter_rules: FilterRules object for symlink filtering, or None to disable
+    """
     # Resolve defaults and inputs
     scan_path = Path(scan_path)
     config = load_markdown_config(config_path)
 
+    # Prepare exclude patterns for scanner
+    exclude_patterns = None
+    is_filtered = False
+    if filter_rules is not None:
+        from ..core.filter_config import FilterRules
+        if isinstance(filter_rules, FilterRules):
+            exclude_patterns = filter_rules.exclude_patterns
+            is_filtered = bool(exclude_patterns)
+
     # Scan and classify
-    symlinks = scan_symlinks(scan_path=scan_path, max_depth=max_depth)
+    symlinks = scan_symlinks(
+        scan_path=scan_path,
+        max_depth=max_depth,
+        exclude_patterns=exclude_patterns
+    )
     buckets = classify_symlinks(symlinks, config, scan_root=scan_path)
     rows = _build_rows(buckets)
 
@@ -412,33 +467,81 @@ def run_tui(scan_path: Path, config_path: Optional[Path] = None, *, max_depth: i
     cursor_item_pos = 0
     cursor_row_index = item_row_indices[cursor_item_pos]
 
-    with _RawMode(sys.stdin.fileno()):
+    # In-session proposals (symlink path -> proposed new target)
+    proposals: dict[Path, Path] = {}
+
+    def _prompt_input(prompt: str, initial: str = "") -> Optional[str]:
+        """Minimal line editor in raw mode. ESC cancels, Enter accepts."""
+        buffer = list(initial)
         while True:
-            _render_list(
-                rows,
-                cursor_item_pos,
-                item_row_indices,
-                scan_path=scan_path,
-                config_path=config_path
-            )
+            console.clear()
+            console.print(Text(prompt, style="bold"))
+            console.print(Text("".join(buffer), style="white"))
+            console.print(Text("Enter to accept • Esc to cancel • ⌫ to delete", style="dim cyan"))
             key = _read_key()
-            if key in ("q", "Q", "ESC"):
-                break
-            if key in ("UP", "k"):
-                cursor_item_pos = max(0, cursor_item_pos - 1)
-            elif key in ("DOWN", "j"):
-                cursor_item_pos = min(len(item_row_indices) - 1, cursor_item_pos + 1)
-            elif key == "ENTER":
-                # Show detail view for the selected item
-                sel_abs_row = item_row_indices[cursor_item_pos]
-                sel = rows[sel_abs_row]
-                if sel.kind == "item" and sel.item is not None:
-                    _render_detail(sel.item, read_only=True)
-                    # Wait for a single key to return
-                    _read_key()
-            # Recompute absolute row index (not used except for details)
-            cursor_row_index = item_row_indices[cursor_item_pos]
+            if key == "ENTER":
+                return "".join(buffer)
+            if key == "ESC":
+                return None
+            if key == "BACKSPACE":
+                if buffer:
+                    buffer.pop()
+                continue
+            if len(key) == 1 and 32 <= ord(key) <= 126:
+                buffer.append(key)
+                continue
+            # Ignore other keys
+            continue
 
-    console.clear()
+    # Use terminal alternate screen buffer to avoid polluting scrollback in VS Code
+    # and other xterm-compatible terminals. Hides cursor during interaction.
+    with console.screen(hide_cursor=True):
+        with _RawMode(sys.stdin.fileno()):
+            while True:
+                _render_list(
+                    rows,
+                    cursor_item_pos,
+                    item_row_indices,
+                    scan_path=scan_path,
+                    config_path=config_path,
+                    is_filtered=is_filtered,
+                )
+                key = _read_key()
+                if key in ("q", "Q", "ESC"):
+                    break
+                elif key in ("UP", "k"):
+                    cursor_item_pos = max(0, cursor_item_pos - 1)
+                elif key in ("DOWN", "j"):
+                    cursor_item_pos = min(len(item_row_indices) - 1, cursor_item_pos + 1)
+                elif key == "ENTER":
+                    # Show detail view for the selected item
+                    sel_abs_row = item_row_indices[cursor_item_pos]
+                    sel = rows[sel_abs_row]
+                    if sel.kind == "item" and sel.item is not None:
+                        proposed = proposals.get(sel.item.path)
+                        _render_detail(sel.item, read_only=True, proposed=proposed)
+                        # Wait for a single key to return
+                        _read_key()
+                elif key in ("e", "E"):
+                    # Edit target for selected item
+                    sel_abs_row = item_row_indices[cursor_item_pos]
+                    sel = rows[sel_abs_row]
+                    if sel.kind == "item" and sel.item is not None:
+                        current_target = str(sel.item.target)
+                        entered = _prompt_input(
+                            prompt=f"New target for {sel.item.name}:",
+                            initial=current_target,
+                        )
+                        if entered is not None:
+                            new_path = Path(entered)
+                            vr = validate_target_change(sel.item, new_path, scan_root=scan_path)
+                            proposals[sel.item.path] = new_path
+                            # Show detail with validation results
+                            _render_detail(sel.item, read_only=False, proposed=new_path, validation=vr)
+                            _read_key()
+                # Recompute absolute row index (not used except for details)
+                cursor_row_index = item_row_indices[cursor_item_pos]
+
+    # Leaving the alternate screen automatically restores the prior screen contents.
+    # Avoid extra clears that would affect the main terminal buffer.
     return 0
-

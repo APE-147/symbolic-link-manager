@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import click
 
@@ -43,8 +43,41 @@ def _default_config_path() -> Optional[Path]:
     required=False,
     help="Markdown classification config (## Project + - pattern lines).",
 )
+@click.option(
+    "filter_config",
+    "--filter-config",
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, path_type=Path),
+    required=False,
+    help="YAML filter configuration file (default: ~/.config/lk/filter.yml).",
+)
+@click.option(
+    "no_filter",
+    "--no-filter",
+    is_flag=True,
+    help="Disable all filtering (show all symlinks).",
+)
+@click.option(
+    "include_patterns",
+    "--include",
+    multiple=True,
+    help="Include pattern (can be specified multiple times, overrides exclude).",
+)
+@click.option(
+    "exclude_patterns",
+    "--exclude",
+    multiple=True,
+    help="Exclude pattern (can be specified multiple times).",
+)
 @click.pass_context
-def cli(ctx: click.Context, target_path: Optional[Path], config_path: Optional[Path]) -> None:
+def cli(
+    ctx: click.Context,
+    target_path: Optional[Path],
+    config_path: Optional[Path],
+    filter_config: Optional[Path],
+    no_filter: bool,
+    include_patterns: Tuple[str, ...],
+    exclude_patterns: Tuple[str, ...],
+) -> None:
     """Symlink Manager CLI.
 
     Safe symlink scanner, classifier, and migrator.
@@ -52,6 +85,7 @@ def cli(ctx: click.Context, target_path: Optional[Path], config_path: Optional[P
     # If no subcommand was invoked, launch the interactive TUI.
     if ctx.invoked_subcommand is None:
         from .ui.tui import run_tui  # local import to keep CLI import cost low
+        from .core.filter_config import load_filter_config, merge_cli_patterns, DEFAULT_EXCLUDE_PATTERNS
 
         scan_root = target_path if target_path is not None else _default_scan_root()
         if not scan_root.exists():
@@ -59,7 +93,31 @@ def cli(ctx: click.Context, target_path: Optional[Path], config_path: Optional[P
             ctx.exit(2)
 
         cfg = config_path if config_path is not None else _default_config_path()
-        code = run_tui(scan_path=scan_root, config_path=cfg)
+
+        # Handle filtering
+        if no_filter:
+            # Disable all filtering
+            filter_rules = None
+        else:
+            # Load filter config
+            try:
+                filter_rules = load_filter_config(filter_config)
+                # Merge CLI patterns if provided
+                if include_patterns or exclude_patterns:
+                    filter_rules = merge_cli_patterns(
+                        filter_rules,
+                        cli_include=list(include_patterns) if include_patterns else None,
+                        cli_exclude=list(exclude_patterns) if exclude_patterns else None,
+                    )
+            except ValueError as e:
+                click.echo(f"[error] Filter config error: {e}", err=True)
+                ctx.exit(2)
+
+        code = run_tui(
+            scan_path=scan_root,
+            config_path=cfg,
+            filter_rules=filter_rules,
+        )
         ctx.exit(code)
 
 
