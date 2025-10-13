@@ -30,6 +30,12 @@
   * 测试命令：`pip install -e . && lk` (验证主列表只显示名称，按 Enter 后详情显示完整路径)
   * 证据：All tests pass (7/7); Changes committed in ebcf493
 
+* [ ] Task-4.2: 实现 TUI 滚动视口与自适应列宽 (Critical UX Enhancement)
+  * 要求：实现可滚动视口支持大列表（100+ 项）；自适应列宽匹配终端尺寸（80-200列）；显示滚动指示器；保持分组 header 可见性
+  * 说明：添加 `_calculate_viewport_size()` 和 `_calculate_visible_range()` 函数；修改 `_render_list()` 只渲染可见行；实现自适应列宽（Name 30%, Status 10 chars, Target 剩余）；添加文本截断 `_truncate_text()`；显示 "↑ N more above" / "↓ N more below" 指示器
+  * 测试命令：`./tests/create_test_symlinks.sh && lk --target /tmp/symlink_test_<timestamp>` (验证滚动流畅，指示器正确，不同终端宽度适配)
+  * 证据：All existing tests pass (7/7); Package reinstalled; TUI_SCROLLING.md documentation created; Test script created
+
 * [ ] Task-5: 实现目标路径查看与修改功能
   * 要求：选中链接后显示当前目标路径；提供输入框允许用户输入新目标路径；验证新路径有效性（父目录存在、无冲突）
   * 说明：使用 readlink 获取当前目标；新路径输入后进行预检查（父目录、权限、已存在文件/目录处理）

@@ -6,11 +6,15 @@ Capabilities (read-only for MVP):
 - Display symlinks grouped by project (classified first; "unclassified" last)
 - Show name, current target, and status (green OK, red BROKEN)
 - Keyboard navigation: Up/Down (or k/j), Enter to view details, q/Esc to quit
+- Scrollable viewport for large lists (100+ items)
+- Adaptive column widths based on terminal size
+- Scroll indicators when more items exist above/below viewport
 - Integrates with scanner + classifier modules
 
 Notes:
 - Input handling uses raw terminal mode (termios) to keep dependencies minimal
 - Rendering uses Rich Console and Tables; full-screen re-render per keypress
+- Only renders visible items for performance with large lists
 """
 
 from dataclasses import dataclass
@@ -146,17 +150,104 @@ def _move_cursor(rows: List[_Row], current: int, delta: int) -> int:
 
 # ---- Rendering --------------------------------------------------------------
 
+def _calculate_viewport_size() -> int:
+    """Calculate how many item rows can fit in the terminal viewport.
+
+    Reserves space for:
+    - Header (1 line)
+    - Info line (1 line)
+    - Help line (1 line)
+    - Rule (1 line)
+    - Scroll indicators (2 lines max)
+    - Footer help (1 line)
+    - Some padding (2 lines)
+    """
+    terminal_height = console.size.height
+    reserved_lines = 9
+    return max(5, terminal_height - reserved_lines)
+
+
+def _calculate_visible_range(
+    rows: List[_Row],
+    cursor_item_pos: int,
+    item_row_indices: List[int],
+    viewport_size: int
+) -> Tuple[int, int]:
+    """Calculate which rows should be visible given cursor position and viewport size.
+
+    Returns (start_row_index, end_row_index) inclusive range.
+    Ensures cursor is always visible and tries to keep it centered.
+    """
+    if not item_row_indices:
+        return (0, 0)
+
+    total_items = len(item_row_indices)
+    if total_items <= viewport_size:
+        # All items fit, show everything
+        return (0, len(rows) - 1)
+
+    # Calculate ideal window centered on cursor
+    cursor_abs_row = item_row_indices[cursor_item_pos]
+
+    # Find how many items are visible (accounting for headers)
+    # Strategy: center cursor in viewport
+    half_viewport = viewport_size // 2
+
+    # Find start_item_pos
+    start_item_pos = max(0, cursor_item_pos - half_viewport)
+    end_item_pos = min(total_items - 1, start_item_pos + viewport_size - 1)
+
+    # Adjust if we're at the end
+    if end_item_pos == total_items - 1:
+        start_item_pos = max(0, end_item_pos - viewport_size + 1)
+
+    # Convert item positions to absolute row indices
+    start_row = item_row_indices[start_item_pos]
+    end_row = item_row_indices[end_item_pos]
+
+    # Include headers for visible items by scanning backwards from start_row
+    for i in range(start_row - 1, -1, -1):
+        if rows[i].kind == "header":
+            start_row = i
+            break
+
+    return (start_row, end_row)
+
+
+def _truncate_text(text: str, max_width: int, suffix: str = "…") -> str:
+    """Truncate text to max_width, adding suffix if truncated."""
+    if len(text) <= max_width:
+        return text
+    return text[:max_width - len(suffix)] + suffix
+
+
 def _render_list(
     rows: List[_Row],
-    cursor: int,
+    cursor_item_pos: int,
+    item_row_indices: List[int],
     *,
     scan_path: Path,
     config_path: Optional[Path],
 ) -> None:
     console.clear()
+
+    # Get terminal dimensions
+    term_width = console.size.width
+    viewport_size = _calculate_viewport_size()
+
+    # Calculate visible range
+    start_row, end_row = _calculate_visible_range(
+        rows, cursor_item_pos, item_row_indices, viewport_size
+    )
+
+    total_items = len(item_row_indices)
+    items_above = cursor_item_pos if start_row > 0 else 0
+    items_below = total_items - cursor_item_pos - 1 if end_row < len(rows) - 1 else 0
+
+    # Header
     header = Text("Symbolic Link Manager — Read-only TUI", style="bold")
     info = Text(
-        f"Scan: {scan_path}  |  Config: {config_path or 'None'}  |  Items: {_count_items(rows)}",
+        f"Scan: {scan_path}  |  Config: {config_path or 'None'}  |  Items: {total_items}",
         style="dim",
     )
     help_line = Text("↑/↓ or j/k to navigate • Enter to view • q/Esc to quit", style="cyan")
@@ -165,34 +256,65 @@ def _render_list(
     console.print(help_line)
     console.print(Rule())
 
-    # Render per-group tables; highlight the selected row if it belongs here
-    i = 0
-    for row in rows:
+    # Scroll indicator - above
+    if start_row > 0:
+        # Count actual items (not headers) above
+        items_above_count = sum(1 for i in range(start_row) if rows[i].kind == "item")
+        console.print(Text(f"  ↑ {items_above_count} more above", style="dim cyan"))
+
+    # Calculate adaptive column widths based on terminal width
+    # Formula: Name (30%), Status (10 chars fixed), Target (remaining)
+    status_width = 10
+    min_name_width = 12
+    name_width = max(min_name_width, int(term_width * 0.3))
+    target_width = max(20, term_width - name_width - status_width - 6)  # 6 for spacing/borders
+
+    # Render visible rows only
+    item_index = 0
+    for row_idx in range(start_row, end_row + 1):
+        if row_idx >= len(rows):
+            break
+
+        row = rows[row_idx]
+
         if row.kind == "header":
             title = row.title or ""
             style = "bold magenta" if title != "unclassified" else "bold yellow"
             console.print(Text(title.upper(), style=style))
             continue
-        assert row.item is not None
-        selected = (i == cursor)
 
-        # We render one-row table per item for simple per-row highlighting
-        tbl = Table(show_edge=False, show_header=False, pad_edge=False)
-        tbl.add_column("Name", no_wrap=True)
-        tbl.add_column("Target", overflow="fold")
-        tbl.add_column("Status", no_wrap=True, justify="right")
+        assert row.item is not None
+
+        # Find the item position in item_row_indices to determine if selected
+        selected = (row_idx == item_row_indices[cursor_item_pos])
+
+        # Create table with adaptive widths
+        tbl = Table(show_edge=False, show_header=False, pad_edge=False, width=term_width - 2)
+        tbl.add_column("Name", no_wrap=True, width=name_width)
+        tbl.add_column("Target", overflow="fold", width=target_width)
+        tbl.add_column("Status", no_wrap=True, justify="right", width=status_width)
 
         item = row.item
-        status_text = Text("OK", style="green") if not item.is_broken else Text("BROKEN", style="red")
-        # Display only the basename (link name) in the main list for cleaner UX
-        name_text = Text(item.name)
-        # Show target as basename too for consistency, or a shorter representation
-        target_basename = Text(item.target.name if item.target.name else str(item.target), style="dim")
+        status_text = Text("Valid", style="green") if not item.is_broken else Text("Broken", style="red")
+
+        # Truncate name if too long
+        name_display = _truncate_text(item.name, name_width)
+        name_text = Text(name_display)
+
+        # Truncate target basename if too long
+        target_basename = item.target.name if item.target.name else str(item.target)
+        target_display = _truncate_text(target_basename, target_width)
+        target_text = Text(target_display, style="dim")
 
         row_style = "reverse" if selected else None
-        tbl.add_row(name_text, target_basename, status_text, style=row_style)
+        tbl.add_row(name_text, target_text, status_text, style=row_style)
         console.print(tbl)
-        i += 1
+        item_index += 1
+
+    # Scroll indicator - below
+    if end_row < len(rows) - 1:
+        items_below_count = sum(1 for i in range(end_row + 1, len(rows)) if rows[i].kind == "item")
+        console.print(Text(f"  ↓ {items_below_count} more below", style="dim cyan"))
 
 
 def _render_detail(item: SymlinkInfo, *, read_only: bool = True) -> None:
@@ -256,7 +378,13 @@ def run_tui(scan_path: Path, config_path: Optional[Path] = None, *, max_depth: i
 
     with _RawMode(sys.stdin.fileno()):
         while True:
-            _render_list(rows, cursor_item_pos, scan_path=scan_path, config_path=config_path)
+            _render_list(
+                rows,
+                cursor_item_pos,
+                item_row_indices,
+                scan_path=scan_path,
+                config_path=config_path
+            )
             key = _read_key()
             if key in ("q", "Q", "ESC"):
                 break

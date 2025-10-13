@@ -160,3 +160,85 @@ Q8. Deployment and rollback plan?
   7. 手动测试快速验证，适合此类 UI 修复
   8. Git 标准流程确保可追溯和快速回滚
 
+---
+
+## Cycle 3 - 2025-10-13 20:30  (@source: REQUIRES.md + UX Enhancement Request)
+Progress: 62.50%  (5/8 tasks completed from TASKS.md)
+
+**Critical UX Enhancement: TUI Scrolling & Adaptive Width**
+
+Q1. Viewport scrolling strategy for large lists?
+- A) Viewport-based rendering with centered cursor ★
+   - 效果：范围/性能最优/风险低/质量/用户体验最佳（支持1000+项）/复杂度中/工期短（1h）/成本低/可观测性强（加权：UX 5.0｜代码整洁 4.5｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.86）
+- B) Page-based scrolling (PgUp/PgDn only)
+   - 效果：范围/简单但跳跃/风险低/质量中/用户体验不够流畅/复杂度低/工期短/成本低/可观测性中（加权：UX 3.5｜代码整洁 4.6｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.26）
+- C) Load all items (current behavior - broken for large lists)
+   - 效果：范围/无法使用/风险高/质量/不可用/用户体验最差/复杂度无/工期无/成本无/可观测性无（加权：UX 0.5｜代码整洁 4.0｜部署便捷 5.0｜安全 4.0｜成本 5.0 → 总分 3.08）
+
+Q2. Scroll indicator design?
+- A) "↑ N more above" / "↓ N more below" with dim cyan style ★
+   - 效果：范围/清晰直观/风险极低/质量/视觉不侵入/用户体验优秀/复杂度低/工期短（15min）/成本低/可访问性强（加权：UX 4.9｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.94）
+- B) Progress bar style indicator (█░░░░ 20%)
+   - 效果：范围/视觉重/风险低/质量好/用户体验较好/复杂度中/工期中（30min）/成本低/可访问性中（加权：UX 4.0｜代码整洁 4.2｜部署便捷 4.5｜安全 5.0｜成本 4.5 → 总分 4.36）
+- C) No indicators (user guesses if more items exist)
+   - 效果：范围/极简但混乱/风险中/质量差/用户体验差/复杂度最低/工期最短/成本最低/可观测性无（加权：UX 1.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.58）
+
+Q3. Adaptive column width calculation strategy?
+- A) Name 30%, Status fixed 10 chars, Target remaining ★
+   - 效果：范围/平衡合理/风险低/质量/适配80-200列终端/用户体验最佳/复杂度中/工期中（30min）/成本低/可维护性强（加权：UX 4.8｜代码整洁 4.6｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.76）
+- B) Fixed column widths (current - breaks on narrow terminals)
+   - 效果：范围/不适配/风险高/质量差/用户体验/窄终端不可用/复杂度无/工期无/成本无/可维护性现状（加权：UX 2.0｜代码整洁 4.5｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 3.78）
+- C) Content-based dynamic width (measure actual text)
+   - 效果：范围/精确但重/风险中/质量最高/用户体验优秀/复杂度高/工期长（2h）/成本中/可维护性复杂（加权：UX 4.9｜代码整洁 3.8｜部署便捷 4.0｜安全 4.8｜成本 3.8 → 总分 4.38）
+
+Q4. Text truncation strategy for long names/paths?
+- A) Truncate with "…" suffix when exceeding column width ★
+   - 效果：范围/标准做法/风险极低/质量高/用户体验好（hover不可用，需Enter查看）/复杂度低/工期短（15min）/成本低/可访问性强（加权：UX 4.6｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.88）
+- B) Word wrap with overflow
+   - 效果：范围/多行显示/风险低/质量好/用户体验/可能打乱行对齐/复杂度中/工期中/成本低/可访问性强（加权：UX 3.8｜代码整洁 4.0｜部署便捷 4.5｜安全 5.0｜成本 4.8 → 总分 4.26）
+- C) Horizontal scrolling (left/right arrows)
+   - 效果：范围/复杂交互/风险中/质量好/用户体验/需额外按键/复杂度高/工期长（1.5h）/成本中/可访问性中（加权：UX 3.5｜代码整洁 3.5｜部署便捷 4.0｜安全 5.0｜成本 3.8 → 总分 3.92）
+
+Q5. Group header preservation during scrolling?
+- A) Include headers by scanning backwards from visible range ★
+   - 效果：范围/上下文保持/风险低/质量高/用户体验最佳（始终知道在哪个项目）/复杂度中/工期中（30min）/成本低/可观测性强（加权：UX 5.0｜代码整洁 4.4｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.84）
+- B) Show headers only when first item of group is visible
+   - 效果：范围/简单但失上下文/风险低/质量中/用户体验/滚动中丢失项目信息/复杂度低/工期短（15min）/成本低/可观测性弱（加权：UX 3.0｜代码整洁 4.8｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.14）
+- C) Sticky header (always show current group at top)
+   - 效果：范围/复杂实现/风险中/质量最高/用户体验最佳/复杂度高/工期长（1.5h）/成本中/可观测性最强（加权：UX 5.0｜代码整洁 3.8｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.52）
+
+Q6. Performance optimization for large lists (1000+ items)?
+- A) Render only visible viewport (O(viewport_size) not O(total)) ★
+   - 效果：范围/关键优化/风险极低/质量高/用户体验/流畅无卡顿/复杂度低/工期短（20min）/成本低/可扩展性完美（加权：UX 5.0｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.96）
+- B) Lazy loading with pagination
+   - 效果：范围/分批加载/风险中/质量好/用户体验/需加载等待/复杂度高/工期长（2h）/成本中/可扩展性好（加权：UX 4.0｜代码整洁 4.0｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.18）
+- C) Render all items (current - fails at ~100+)
+   - 效果：范围/不可扩展/风险高/质量差/用户体验/大列表卡死/复杂度无/工期无/成本无/可扩展性零（加权：UX 0.5｜代码整洁 4.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.18）
+
+Q7. Testing strategy for scrolling functionality?
+- A) Create test script generating 60+ symlinks + manual verification ★
+   - 效果：范围/实际场景测试/风险低/质量高/用户体验验证/复杂度低/工期短（30min）/成本低/可重现性强（加权：UX 4.8｜代码整洁 4.5｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.74）
+- B) Unit tests only (mock terminal size)
+   - 效果：范围/自动化/风险中/质量好/用户体验/无实际验证/复杂度中/工期中（1h）/成本低/可重现性最强（加权：UX 3.5｜代码整洁 4.8｜部署便捷 4.5｜安全 4.8｜成本 4.5 → 总分 4.38）
+- C) Manual testing on real directory
+   - 效果：范围/依赖环境/风险中/质量中/用户体验验证/复杂度最低/工期短（15min）/成本低/可重现性差（加权：UX 4.0｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.38）
+
+Q8. Documentation and user guidance?
+- A) Create TUI_SCROLLING.md with implementation details + test guide ★
+   - 效果：范围/完整文档/风险极低/质量最高/用户体验/可理解性强/复杂度低/工期短（30min）/成本低/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 4.8 → 总分 4.92）
+- B) Update CHANGELOG.md only
+   - 效果：范围/简要记录/风险低/质量中/用户体验/基本了解/复杂度最低/工期最短（10min）/成本低/可维护性好（加权：UX 3.5｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.48）
+- C) No documentation (code comments only)
+   - 效果：范围/最小/风险中/质量差/用户体验/不可发现/复杂度无/工期无/成本最低/可维护性弱（加权：UX 2.0｜代码整洁 4.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.68）
+
+建议与权衡：
+- 建议：Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
+- 理由：
+  1. Viewport-based rendering 确保性能，支持任意大小列表
+  2. 简洁的文本滚动指示器清晰直观，不占用过多空间
+  3. 比例式列宽适配所有常见终端尺寸（80-200列）
+  4. 标准 "…" 截断符合用户预期，需完整信息时按 Enter 查看详情
+  5. 后向扫描包含 header 确保用户始终知道当前项目上下文
+  6. 只渲染可见项实现 O(viewport) 性能，1000+项依然流畅
+  7. 测试脚本生成真实场景，可重复验证，快速反馈
+  8. 完整文档确保用户理解功能，开发者理解实现，便于维护

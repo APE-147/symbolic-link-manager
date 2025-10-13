@@ -13,8 +13,21 @@ Format based on Keep a Changelog; versions follow SemVer.
 - Markdown-based classification system with glob pattern matching
 - Interactive TUI with keyboard navigation and rich formatting
 - CLI entry point wired to `lk` command
+- **TUI Scrolling**: Viewport-based rendering for large lists (100+ symlinks)
+  - Only renders visible items for O(viewport_size) performance
+  - Scroll indicators: "↑ N more above" / "↓ N more below"
+  - Centered cursor with smooth navigation
+  - Group headers preserved during scrolling
+- **Adaptive Column Widths**: Dynamic sizing based on terminal width (80-200 cols)
+  - Name column: 30% of terminal width (min 12 chars)
+  - Status column: Fixed 10 chars
+  - Target column: Remaining space (min 20 chars)
+  - Text truncation with "…" suffix for long names/paths
+- Test script for generating 60+ test symlinks (`tests/create_test_symlinks.sh`)
+- Comprehensive documentation: `docs/TUI_SCROLLING.md`
 
 ### Fixed
 - **BREAKING CHANGE**: Renamed CLI command from `link` to `lk` to avoid conflict with Unix system's built-in `/bin/link` command
 - Updated default config path from `~/.config/link/` to `~/.config/lk/`
+- TUI now handles large lists without overflow (previously items became invisible)
 
