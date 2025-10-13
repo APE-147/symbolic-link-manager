@@ -30,6 +30,7 @@ dependencies = [
   "click>=8.1,<9",
   "rich>=13,<14",
   "pyyaml>=6.0,<7",
+  "simple-term-menu>=1.6.0,<2",
 ]
 
 [project.optional-dependencies]
