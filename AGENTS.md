@@ -102,6 +102,13 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 18:20 - Interactive TUI (Task-4)
+- Added `src/symlink_manager/ui/tui.py` using Rich for rendering and a raw terminal key handler for navigation.
+- Features: grouped list (classified first, `unclassified` last), color-coded status (green OK, red BROKEN), arrow/j/k navigation, Enter opens read-only detail view, q/Esc to quit.
+- Integrated with scanner + classifier; reads config from `--config` or `~/.config/link/projects.md` fallback.
+- Wired CLI default command to launch TUI: `link [--target PATH] [--config FILE]` (group options on root command). Keeps operations read-only.
+- Next: implement editable target input + validation (Task-5) and safe migration (Task-6).
+
 ### 2025-10-13 17:45 - Markdown classification system (Task-3)
 - Implemented `src/symlink_manager/core/classifier.py` with Markdown parser (sections `## Project` + `- pattern`), glob matching, first-match-wins, and graceful fallback to all `unclassified` on missing/invalid config.
 - Added CLI: `python -m symlink_manager.core.classifier --config <path> --scan-path <dir>` printing JSON buckets (includes `unclassified`).
