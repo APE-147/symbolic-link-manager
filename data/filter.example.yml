@@ -1,0 +1,22 @@
+# Example filtering configuration for lk
+ignore_case: false
+use_regex: false
+max_depth: 20
+include:
+  # Keep project roots
+  - "*/Projects/*"
+exclude:
+  # VCS and caches
+  - "*/.git/*"
+  - "*/.hg/*"
+  - "*/.svn/*"
+  - "*/__pycache__/*"
+  - "*/.venv/*"
+  # Package managers and build outputs
+  - "*/node_modules/*"
+  - "*/build/*"
+  - "*/dist/*"
+  # Temporary files
+  - "*.tmp"
+  - "*.swp"
+  - "*/.DS_Store"

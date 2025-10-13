@@ -30,7 +30,7 @@
   * 测试命令：`pip install -e . && lk` (验证主列表只显示名称，按 Enter 后详情显示完整路径)
   * 证据：All tests pass (7/7); Changes committed in ebcf493
 
-* [ ] Task-4.2: 实现 TUI 滚动视口与自适应列宽 (Critical UX Enhancement)
+* [x] Task-4.2: 实现 TUI 滚动视口与自适应列宽 (Critical UX Enhancement)
   * 要求：实现可滚动视口支持大列表（100+ 项）；自适应列宽匹配终端尺寸（80-200列）；显示滚动指示器；保持分组 header 可见性
   * 说明：添加 `_calculate_viewport_size()` 和 `_calculate_visible_range()` 函数；修改 `_render_list()` 只渲染可见行；实现自适应列宽（Name 30%, Status 10 chars, Target 剩余）；添加文本截断 `_truncate_text()`；显示 "↑ N more above" / "↓ N more below" 指示器
   * 测试命令：`./tests/create_test_symlinks.sh && lk --target /tmp/symlink_test_<timestamp>` (验证滚动流畅，指示器正确，不同终端宽度适配)
@@ -42,7 +42,10 @@
     * 测试命令：`pytest tests/test_tui_alignment.py -v && lk --target /Users/niceday/Developer/Cloud/Dropbox/-Code-/Scripts` (验证所有行完美对齐，无对角线模式)
     * 证据：All 9 tests pass (7 original + 2 new alignment tests); Perfect alignment verified; Critical bug fixed
 
-* [ ] Task-5: 实现目标路径查看与修改功能
+* [x] Task-5: 实现目标路径查看与修改功能
+  * 要求：在详情视图中显示当前目标；列表中按 `e` 进入编辑，接受用户输入的新目标路径；在迁移前执行安全校验并给出错误/警告反馈（不执行实际迁移）。
+  * 说明：新增 `services.validator.validate_target_change`，包含绝对路径校验、父目录存在与可写、与当前目标相同的无效变更检测、系统目录前缀禁止、目的地已存在冲突检查、超出扫描根目录的提示等；TUI 增加最小行编辑器与验证结果面板。
+  * 测试命令：`pytest tests/test_validator.py -v`（6 个用例）；`pytest tests/test_tui_alignment_visual.py -v` 确认渲染不回退；交互验证：`lk` → 选中条目按 `e` → 输入新路径 → 查看校验结果。
   * 要求：选中链接后显示当前目标路径；提供输入框允许用户输入新目标路径；验证新路径有效性（父目录存在、无冲突）
   * 说明：使用 readlink 获取当前目标；新路径输入后进行预检查（父目录、权限、已存在文件/目录处理）
   * 测试命令：`python -m symlink_manager.services.link_updater --link-path /path/to/symlink --new-target /new/target`
@@ -62,3 +65,44 @@
   * 说明：测试用例包括：正常流程、权限错误、循环链接、目标冲突、备份恢复；目标覆盖率 ≥80%
   * 测试命令：`pytest tests/ -v --cov=src/symlink_manager --cov-report=term-missing`
 
+## Tasks for Cycle 1 - Symlink Filtering Feature (Based on PLAN.md Cycle 1 recommendations)
+
+* [ ] Task-F-1: 过滤策略与默认规则规范（SPEC）
+  * 要求：基于 PLAN.md 决策输出 `docs/FILTERING.md`；定义 include/exclude 语义、优先级、默认排除集（如 `.git/`, `node_modules/`, `__pycache__/`, `.venv/`, `*.tmp` 等）；给出示例配置 `data/filter.example.yml`
+  * 说明：配置项包含：`include`, `exclude`, `ignore_case`, `use_regex`, `max_depth`（可选）；清晰描述 CLI 覆盖优先级（CLI > 文件 > 默认）与回滚策略（`--no-filter` 禁用）
+  * 测试命令：`ls -la docs/FILTERING.md && cat data/filter.example.yml`
+
+* [ ] Task-F-2: 过滤配置解析与校验
+  * 要求：实现 YAML 解析与 schema 校验（必填/类型/空值处理）；提供 Python API：`load_filter_config(path) -> FilterRules`，`compile_patterns(FilterRules) -> CompiledFilter`
+  * 说明：非法配置需给出人类可读错误；支持从默认路径 `~/.config/lk/filter.yml` 自动加载（若存在）
+  * 测试命令：`pytest -q tests/test_filter_config.py -q`
+
+* [ ] Task-F-3: CLI 选项与优先级
+  * 要求：新增 `--filter-config PATH`、`--include PATTERN`、`--exclude PATTERN`（可多次）、`--no-filter`；定义优先级：CLI > 配置文件 > 默认规则
+  * 说明：更新 `lk --help`；为无效组合给出明确报错与建议（如同时指定 `--no-filter` 与 `--include`）
+  * 测试命令：`lk --help | rg -i 'filter|include|exclude'`
+
+* [ ] Task-F-4: 扫描流程集成与性能优化
+  * 要求：在扫描阶段应用目录级短路（若目录命中 exclude 则跳过整支）；预编译 glob/regex；对 1k+ symlink 列表保持流畅
+  * 说明：提供可注入的 `should_include(path, is_symlink)` 回调；确保“只读扫描”不触碰文件内容（符合 Invariants #5）
+  * 测试命令：`python -m symlink_manager.core.scanner --scan-path /Users/niceday/Developer/Cloud/Dropbox/-Code- --exclude '*/node_modules/*'`
+
+* [ ] Task-F-5: 过滤功能的单元/集成/性能测试
+  * 要求：新增 `tests/test_filtering_unit.py`（模式匹配与优先级）、`tests/test_filtering_integration.py`（真实目录/临时树）、`tests/test_filter_perf.py`（样本≥10k 路径的基准）
+  * 说明：覆盖 include/ exclude 交叉、大小写、regex 与 glob、深度限制、空配置/无配置
+  * 测试命令：`pytest -v tests/test_filtering_*`
+
+* [ ] Task-F-6: 可观测性与日志
+  * 要求：在 `data/logs/filter.log` 记录过滤决策摘要（命中的规则、计数、跳过目录数）；提供 `--debug-filter` 输出规则命中详情（仅调试）
+  * 说明：为大目录提供 `data/reports/filter_report.json`（包含每条规则命中数量与示例）
+  * 测试命令：`LK_DEBUG=1 lk --exclude '*/.venv/*' --debug-filter --scan-path . | head -n 50`
+
+* [ ] Task-F-7: 文档与示例
+  * 要求：新增 `docs/FILTERING.md` 详细说明；更新 README 与 REQUIRES 的“过滤”能力；在 `data/` 提供示例配置与示例目录
+  * 说明：在 CHANGELOG.md 记录“新增过滤功能（默认开启基础 exclude，可通过 --no-filter 关闭）”
+  * 测试命令：`rg -n "FILTERING" docs README.md CHANGELOG.md`
+
+* [ ] Task-F-8: 发布与回滚路径
+  * 要求：默认启用基础 exclude；提供 `--no-filter` 一键关闭；支持通过配置文件覆盖；记录决策在 `data/reports/` 便于审计
+  * 说明：为潜在误杀准备“忽略此规则一次”的运行时提示（后续迭代），当前版本先通过 CLI 显式覆盖
+  * 测试命令：`lk --no-filter --scan-path /Users/niceday/Developer/Cloud/Dropbox/-Code-`

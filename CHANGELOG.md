@@ -25,6 +25,14 @@ Format based on Keep a Changelog; versions follow SemVer.
   - Text truncation with "…" suffix for long names/paths
 - Test script for generating 60+ test symlinks (`tests/create_test_symlinks.sh`)
 - Comprehensive documentation: `docs/TUI_SCROLLING.md`
+ - Target editing (Task-5): In-TUI edit flow with validation-only (no migration yet)
+   - Minimal raw-mode line editor (press `e` on list)
+   - Validation result panel in detail view
+ - Validator service: `services.validator.validate_target_change`
+   - Absolute path requirement; parent existence & writability checks
+   - No-op detection (same as current target)
+   - System directory guards; destination-exists conflict detection
+   - Outside scan-root warning for user awareness
 
 ### Fixed
 - **BREAKING CHANGE**: Renamed CLI command from `link` to `lk` to avoid conflict with Unix system's built-in `/bin/link` command
@@ -35,4 +43,9 @@ Format based on Keep a Changelog; versions follow SemVer.
   - Solution: Create single Table per group, add all rows to that table, then print once
   - Result: Perfect column alignment across all rows in each group
   - Added regression tests: `tests/test_tui_alignment.py` (2 tests verifying single table per group)
+  - Added visual alignment tests using captured console output: `tests/test_tui_alignment_visual.py`
+  - Switched table box style to `box.SQUARE` to ensure visible vertical separators in exported text
 
+### Tests
+- New validator unit tests: `tests/test_validator.py` (6 passing)
+- All tests green: `20 passed`
