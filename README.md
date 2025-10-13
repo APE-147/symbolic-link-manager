@@ -10,7 +10,7 @@ Quick Start
 
 1. Create a virtualenv (or use `pipx`).
 2. Install in editable mode: `pip install -e .[dev]`
-3. Check CLI is wired: `link --version`.
+3. Check CLI is wired: `lk --version`.
 
 Goals
 -----

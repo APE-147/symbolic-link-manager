@@ -20,7 +20,7 @@ def _default_scan_root() -> Path:
 
 def _default_config_path() -> Optional[Path]:
     # XDG-style default
-    xdg = Path("~/.config/link/projects.md").expanduser()
+    xdg = Path("~/.config/lk/projects.md").expanduser()
     return xdg if xdg.exists() else None
 
 
@@ -75,7 +75,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     Returns process exit code (0 for success).
     """
     try:
-        cli.main(args=argv, prog_name="link", standalone_mode=False)
+        cli.main(args=argv, prog_name="lk", standalone_mode=False)
     except SystemExit as exc:
         return int(exc.code)
     return 0

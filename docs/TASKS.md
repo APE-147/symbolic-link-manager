@@ -22,7 +22,7 @@
 * [x] Task-4: 实现交互式 TUI 界面 (Commit: d96b7ae)
   * 要求：使用 rich 或 prompt_toolkit 构建终端 UI；显示分类链接（已分类在顶部）；支持键盘导航与选择；按 Enter 进入详情
   * 说明：分类项显示项目名称作为分组；未分类项单独分组在底部；展示链接名称与当前目标路径
-  * 测试命令：`link` (调用全局命令进入交互界面)
+  * 测试命令：`lk` (调用全局命令进入交互界面)
 
 * [ ] Task-5: 实现目标路径查看与修改功能
   * 要求：选中链接后显示当前目标路径；提供输入框允许用户输入新目标路径；验证新路径有效性（父目录存在、无冲突）
@@ -35,9 +35,9 @@
   * 测试命令：`python -m symlink_manager.services.migrator --source /old/target --dest /new/target --dry-run`
 
 * [ ] Task-7: 实现全局 CLI 安装与入口点
-  * 要求：配置 pyproject.toml 的 [project.scripts] 将 `link` 命令映射到主入口；支持 pip install -e . 本地安装
-  * 说明：entry point: `link = symlink_manager.cli:main`；确保安装后可全局调用
-  * 测试命令：`pip install -e . && link --version && link --help`
+  * 要求：配置 pyproject.toml 的 [project.scripts] 将 `lk` 命令映射到主入口；支持 pip install -e . 本地安装
+  * 说明：entry point: `lk = symlink_manager.cli:main`；确保安装后可全局调用
+  * 测试命令：`pip install -e . && lk --version && lk --help`
 
 * [ ] Task-8: 实现测试套件与质量门
   * 要求：单元测试覆盖扫描、分类、迁移模块；集成测试覆盖端到端流程；使用 pytest + pytest-mock 模拟文件系统
