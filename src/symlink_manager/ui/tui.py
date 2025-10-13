@@ -269,8 +269,14 @@ def _render_list(
     name_width = max(min_name_width, int(term_width * 0.3))
     target_width = max(20, term_width - name_width - status_width - 6)  # 6 for spacing/borders
 
+    # Import box styles for table
+    from rich import box
+
     # Render visible rows only
+    # We need to handle groups: print header, then create/print table for that group's items
+    current_table = None
     item_index = 0
+
     for row_idx in range(start_row, end_row + 1):
         if row_idx >= len(rows):
             break
@@ -278,21 +284,50 @@ def _render_list(
         row = rows[row_idx]
 
         if row.kind == "header":
+            # Print any existing table before starting a new group
+            if current_table is not None:
+                console.print(current_table)
+                current_table = None
+
+            # Print group header
             title = row.title or ""
             style = "bold magenta" if title != "unclassified" else "bold yellow"
             console.print(Text(title.upper(), style=style))
+
+            # Create new table for this group
+            current_table = Table(
+                show_header=True,
+                show_lines=False,
+                box=box.SIMPLE,
+                pad_edge=False,
+                padding=(0, 1),
+                collapse_padding=True,
+                width=term_width - 2
+            )
+            current_table.add_column("Name", no_wrap=True, width=name_width)
+            current_table.add_column("Target", no_wrap=True, width=target_width)
+            current_table.add_column("Status", no_wrap=True, justify="right", width=status_width)
             continue
 
         assert row.item is not None
 
+        # Create table if we somehow don't have one (shouldn't happen with proper data)
+        if current_table is None:
+            current_table = Table(
+                show_header=True,
+                show_lines=False,
+                box=box.SIMPLE,
+                pad_edge=False,
+                padding=(0, 1),
+                collapse_padding=True,
+                width=term_width - 2
+            )
+            current_table.add_column("Name", no_wrap=True, width=name_width)
+            current_table.add_column("Target", no_wrap=True, width=target_width)
+            current_table.add_column("Status", no_wrap=True, justify="right", width=status_width)
+
         # Find the item position in item_row_indices to determine if selected
         selected = (row_idx == item_row_indices[cursor_item_pos])
-
-        # Create table with adaptive widths
-        tbl = Table(show_edge=False, show_header=False, pad_edge=False, width=term_width - 2)
-        tbl.add_column("Name", no_wrap=True, width=name_width)
-        tbl.add_column("Target", overflow="fold", width=target_width)
-        tbl.add_column("Status", no_wrap=True, justify="right", width=status_width)
 
         item = row.item
         status_text = Text("Valid", style="green") if not item.is_broken else Text("Broken", style="red")
@@ -307,9 +342,12 @@ def _render_list(
         target_text = Text(target_display, style="dim")
 
         row_style = "reverse" if selected else None
-        tbl.add_row(name_text, target_text, status_text, style=row_style)
-        console.print(tbl)
+        current_table.add_row(name_text, target_text, status_text, style=row_style)
         item_index += 1
+
+    # Print any remaining table
+    if current_table is not None:
+        console.print(current_table)
 
     # Scroll indicator - below
     if end_row < len(rows) - 1:

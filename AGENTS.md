@@ -103,6 +103,36 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 21:00 - CRITICAL BUG FIX: TUI Table Alignment (Task-4.3) ✅
+- **Issue**: TUI displayed severe misalignment with diagonal/zigzag pattern; each row progressively indented differently; completely unusable
+- **Root Cause**: In `_render_list()`, each item row created its own `Table` object (line 292-295 in old code), resulting in independent borders/padding per row instead of unified table structure
+- **Impact**: Tool completely unusable with real data (615 items); alignment chaos made it impossible to read symlink information
+- **Solution**: Refactored table rendering to create ONE table per group (not per row):
+  - Create table when encountering group header
+  - Add all group items as rows to that single table
+  - Print complete table once after all rows added
+  - Repeat for each group (e.g., "PROJECT-A" group gets 1 table, "UNCLASSIFIED" group gets 1 table)
+- **Changes Made**:
+  - Modified `_render_list()` lines 265-350: Introduced `current_table` variable to track active table
+  - On header row: print previous table (if exists), print header, create new table for group
+  - On item row: add row to current table (don't print yet)
+  - After loop: print any remaining table
+  - Maintained all existing features: adaptive widths, text truncation, selection highlighting, scrolling
+- **Testing**:
+  - All existing tests pass (7/7 original tests)
+  - Added `tests/test_tui_alignment.py` with 2 new tests:
+    - `test_tui_renders_single_table_per_group`: Verifies exactly 1 table printed per group (not per row)
+    - `test_tui_table_has_consistent_columns`: Verifies all tables have consistent 3-column structure
+  - Total: 9/9 tests pass
+  - Package reinstalled: `pip install -e .`
+- **Files Modified**:
+  - `src/symlink_manager/ui/tui.py` (lines 265-350) - Table rendering logic
+  - `tests/test_tui_alignment.py` - New regression tests (2 tests)
+  - `CHANGELOG.md` - Documented critical fix
+  - `AGENTS.md` - This entry
+- **Result**: Perfect column alignment; tables now display exactly as expected with proper borders and consistent spacing
+- **Status**: ✅ Critical bug fixed - tool now usable with any list size (tested up to 615 items)
+
 ### 2025-10-13 20:45 - Critical UX Enhancement: TUI Scrolling & Adaptive Width (Task-4.2) ✅
 - **Issue**: TUI could not handle large lists of symlinks (50+); items overflowed terminal and became invisible; fixed column widths broke on different terminal sizes
 - **Impact**: Tool unusable for real-world scenarios with many symlinks; poor UX on narrow/wide terminals
