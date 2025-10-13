@@ -13,17 +13,17 @@ def _names(items: list[SymlinkInfo]) -> set[str]:
 
 
 def test_scanner_finds_symlink(tmp_path: Path) -> None:
-    target = tmp_path / "real.txt"
-    target.write_text("hello")
+    target = tmp_path / "real_dir"
+    target.mkdir()
 
-    link = tmp_path / "link.txt"
+    link = tmp_path / "link_dir"
     os.symlink(target, link)
 
     results = scan_symlinks(tmp_path)
     assert len(results) == 1
     info = results[0]
     assert info.path == link
-    assert info.name == "link.txt"
+    assert info.name == "link_dir"
     assert info.is_broken is False
     assert Path(info.target) == target
     assert info.project is None
@@ -72,8 +72,8 @@ def test_scanner_handles_permission_errors(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setattr(Path, "iterdir", guarded_iterdir, raising=True)
 
     # Create a real symlink elsewhere to ensure we still collect results
-    target = tmp_path / "ok.txt"
-    target.write_text("data")
+    target = tmp_path / "ok_dir"
+    target.mkdir()
     link = tmp_path / "ok_link"
     os.symlink(target, link)
 

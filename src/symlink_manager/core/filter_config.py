@@ -42,6 +42,8 @@ class FilterRules:
     exclude_patterns: List[str]
     ignore_case: bool = False
     use_regex: bool = False
+    directories_only: bool = True  # NEW: Show only directory symlinks by default
+    filter_garbled: bool = True    # NEW: Filter garbled names by default
 
     def should_include(self, symlink_name: str) -> bool:
         """Determine if a symlink should be included based on filter rules.
@@ -111,6 +113,8 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
             exclude_patterns=DEFAULT_EXCLUDE_PATTERNS,
             ignore_case=False,
             use_regex=False,
+            directories_only=True,
+            filter_garbled=True,
         )
 
     # Determine config file path
@@ -126,6 +130,8 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
             exclude_patterns=DEFAULT_EXCLUDE_PATTERNS,
             ignore_case=False,
             use_regex=False,
+            directories_only=True,
+            filter_garbled=True,
         )
 
     # Parse YAML
@@ -159,12 +165,16 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
 
     ignore_case = bool(data.get('ignore_case', False))
     use_regex = bool(data.get('use_regex', False))
+    directories_only = bool(data.get('directories_only', True))
+    filter_garbled = bool(data.get('filter_garbled', True))
 
     return FilterRules(
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
         ignore_case=ignore_case,
         use_regex=use_regex,
+        directories_only=directories_only,
+        filter_garbled=filter_garbled,
     )
 
 
@@ -191,4 +201,6 @@ def merge_cli_patterns(
         exclude_patterns=exclude_patterns,
         ignore_case=rules.ignore_case,
         use_regex=rules.use_regex,
+        directories_only=rules.directories_only,
+        filter_garbled=rules.filter_garbled,
     )

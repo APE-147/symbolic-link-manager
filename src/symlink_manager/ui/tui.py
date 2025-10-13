@@ -437,20 +437,26 @@ def run_tui(
     scan_path = Path(scan_path)
     config = load_markdown_config(config_path)
 
-    # Prepare exclude patterns for scanner
+    # Prepare filter parameters for scanner
     exclude_patterns = None
+    directories_only = True
+    filter_garbled = True
     is_filtered = False
     if filter_rules is not None:
         from ..core.filter_config import FilterRules
         if isinstance(filter_rules, FilterRules):
             exclude_patterns = filter_rules.exclude_patterns
-            is_filtered = bool(exclude_patterns)
+            directories_only = filter_rules.directories_only
+            filter_garbled = filter_rules.filter_garbled
+            is_filtered = bool(exclude_patterns) or directories_only or filter_garbled
 
     # Scan and classify
     symlinks = scan_symlinks(
         scan_path=scan_path,
         max_depth=max_depth,
-        exclude_patterns=exclude_patterns
+        exclude_patterns=exclude_patterns,
+        directories_only=directories_only,
+        filter_garbled=filter_garbled,
     )
     buckets = classify_symlinks(symlinks, config, scan_root=scan_path)
     rows = _build_rows(buckets)
