@@ -2,37 +2,43 @@
 
 > 手动维护：记录最原始需求与应用场景；仅允许人工在顶部追加最新需求块；历史不得改写。
 
-## Latest Requirements - 2025-10-13
+## 2025-10-13 - TUI Refactoring to simple-term-menu
 
-### Core Functionality
-1. Detect all symbolic links in the directory: /Users/niceday/Developer/Cloud/Dropbox/-Code-
-2. Classify symbolic links by their containing project
-3. Display the current name of each symbolic link
+### 原始需求
+Refactor the TUI implementation to use `simple-term-menu` library instead of the current custom Rich-based terminal navigation.
 
-### Classification System
-- Support project classification via a user-defined markdown file
-- Categories:
-  - Classified items: display at top (priority)
-  - Unclassified items: display at bottom
+### 应用场景
+- 当前使用自定义的 termios/tty 原始终端模式处理
+- 复杂的按键读取逻辑 (_read_key, _RawMode) 和手动光标追踪
+- 手动视口计算和滚动指示器渲染
+- 需要更稳定、功能更丰富、经过良好测试的菜单系统
 
-### Global CLI Tool
-- Make the project globally callable using the command: `lk`
-- Interactive CLI features:
-  - Navigate and select each symbolic link
-  - Press Enter on a selected link to:
-    - Show the current target path (actual location it points to)
-    - Allow changing the target path to a new location
+### 目标
+1. 用 `simple-term-menu` 替换自定义键盘导航实现
+2. 减少 ~150-200 行复杂终端代码
+3. 添加搜索功能 (按 `/` 搜索)
+4. 添加预览面板功能
+5. 改善用户体验和代码可维护性
+6. 保持所有现有功能和测试通过 (33 tests)
 
-### Technical Requirements
-- Implement as a complete, production-ready CLI tool
-- Use appropriate error handling and validation
-- Provide clear user feedback
-- Support cross-platform compatibility where possible
-- Include proper documentation
+### 约束
+- CLI 接口保持不变 (用户无感知)
+- 核心扫描/过滤/验证功能不变
+- 性能要求: <500ms for 1000 symlinks
+- 所有现有核心测试必须通过
+- 分组显示逻辑保持不变 (classified projects first, unclassified last)
 
-### Application Scenario
-User needs to maintain symbolic links across a large codebase directory structure (/Users/niceday/Developer/Cloud/Dropbox/-Code-/). The tool should provide an intuitive way to:
-- Discover all symbolic links
-- Organize them by project context
-- Interactively inspect and modify their targets
-- Ensure consistency and prevent broken links
+### 当前实现问题
+- 自定义 termios/tty 原始终端处理 (~40 lines)
+- 手动按键读取逻辑 (_read_key, _RawMode)
+- 复杂的视口计算和滚动逻辑 (~100 lines)
+- 自定义输入编辑器 (_prompt_input ~25 lines)
+- 跨平台兼容性有限 (Unix-only)
+
+### 预期收益
+- 更少代码：从 ~500 行降至 ~300 行
+- 内置搜索：按 `/` 过滤条目
+- 内置预览面板：显示符号链接详情
+- 更好的滚动：库管理的平滑滚动
+- 更强的健壮性：经过良好测试的库
+- 更好的跨平台支持

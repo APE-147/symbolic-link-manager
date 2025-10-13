@@ -327,3 +327,89 @@ Q8 上线与回滚计划？
   6. 只渲染可见项实现 O(viewport) 性能，1000+项依然流畅
   7. 测试脚本生成真实场景，可重复验证，快速反馈
   8. 完整文档确保用户理解功能，开发者理解实现，便于维护
+  7. 测试脚本生成真实场景，可重复验证，快速反馈
+  8. 完整文档确保用户理解功能，开发者理解实现，便于维护
+
+---
+
+## Cycle 4 - 2025-10-13 20:40  (@source: REQUIRES.md + code quality improvement request)
+Progress: 0.00%  (0/7 tasks for TUI refactoring)
+
+**Code Quality Improvement: Refactor TUI to use simple-term-menu library**
+
+Q1. TUI library choice - which library for menu navigation?
+- A) Keep custom termios/tty implementation (current)
+   - 效果：范围/无依赖但复杂/风险中（维护负担）/质量/手动实现/用户体验有限/复杂度高（~165行自定义代码）/工期/维护成本高/可维护性差/跨平台受限（加权：UX 3.5｜代码整洁 2.8｜部署便捷 4.8｜安全 4.0｜成本 3.0 → 总分 3.46）
+- B) Use simple-term-menu library (drop-in replacement) ★
+   - 效果：范围/减少~200行代码/风险低（成熟库）/质量/经过良好测试/用户体验增强（内置搜索+预览）/复杂度低（库管理）/工期短（1-2h）/成本低（小依赖）/可维护性最优/跨平台更好（加权：UX 4.8｜代码整洁 4.9｜部署便捷 4.5｜安全 4.6｜成本 4.7 → 总分 4.72） ★
+- C) Use prompt_toolkit (full-featured but heavier)
+   - 效果：范围/功能最强但重/风险中（学习曲线）/质量最高/用户体验最佳/复杂度高/工期长（3-4h）/成本中（大依赖）/可维护性好但复杂（加权：UX 5.0｜代码整洁 4.2｜部署便捷 3.8｜安全 4.5｜成本 3.8 → 总分 4.32）
+
+Q2. Menu display format - how to represent grouped symlinks?
+- A) Flat list with non-selectable group headers (skip_empty_entries) ★
+   - 效果：范围/保持现有分组逻辑/风险极低/质量/用户体验一致/复杂度低/工期短（30min）/成本低/可维护性强（加权：UX 4.8｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.92） ★
+- B) Multiple separate menus (one per group)
+   - 效果：范围/割裂导航/风险中/质量好/用户体验差（需切换菜单）/复杂度中/工期中（1h）/成本低/可维护性中（加权：UX 2.8｜代码整洁 4.0｜部署便捷 4.5｜安全 5.0｜成本 4.8 → 总分 3.88）
+- C) Hierarchical menu with nested sub-menus
+   - 效果：范围/过度设计/风险高/质量复杂/用户体验/认知负担大/复杂度高/工期长（2h）/成本中/可维护性差（加权：UX 3.2｜代码整洁 3.5｜部署便捷 4.0｜安全 4.8｜成本 4.0 → 总分 3.82）
+
+Q3. Preview pane design - what to show in STM preview?
+- A) Full details (name/path/target/status) with formatted text ★
+   - 效果：范围/信息完整/风险低/质量高/用户体验最佳（无需Enter查看）/复杂度低/工期短（20min）/成本低/可观测性强（加权：UX 4.9｜代码整洁 4.7｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.92） ★
+- B) Minimal preview (name + target only)
+   - 效果：范围/简洁但信息少/风险低/质量中/用户体验中/复杂度最低/工期最短（10min）/成本低/可观测性中（加权：UX 3.8｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.52）
+- C) No preview (keep Enter for details)
+   - 效果：范围/保持现状/风险无/质量/无改进/用户体验/无增强/复杂度无/工期无/成本最低/可观测性现状（加权：UX 3.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.58）
+
+Q4. Edit target flow - how to handle user input?
+- A) Use click.prompt() for clean input (replace _prompt_input) ★
+   - 效果：范围/简化输入/风险极低/质量高（库实现）/用户体验标准/复杂度最低/工期最短（10min）/成本无（已有依赖）/可维护性最优（加权：UX 4.6｜代码整洁 4.9｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.88） ★
+- B) Keep custom _prompt_input editor
+   - 效果：范围/保持自定义/风险低/质量中/用户体验基础/复杂度中（~25行）/工期无/成本无/可维护性现状（加权：UX 3.8｜代码整洁 3.5｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.22）
+- C) Use separate action menu with edit sub-flow
+   - 效果：范围/多层交互/风险低/质量好/用户体验/多步骤/复杂度中/工期中（30min）/成本低/可维护性好（加权：UX 4.0｜代码整洁 4.4｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.56）
+
+Q5. Test strategy - how to update existing tests?
+- A) Update test_tui_alignment.py to test data structures (_build_rows) ★
+   - 效果：范围/保留核心逻辑测试/风险低/质量高（测试分组逻辑）/用户体验验证/复杂度低/工期短（20min）/成本低/可维护性强（加权：UX 4.5｜代码整洁 4.8｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.74） ★
+- B) Remove alignment tests entirely (library handles rendering)
+   - 效果：范围/删除测试/风险中（失去覆盖）/质量/无验证/用户体验/无保障/复杂度最低/工期最短（5min）/成本最低/可维护性/覆盖降低（加权：UX 3.8｜代码整洁 4.5｜部署便捷 5.0｜安全 3.5｜成本 5.0 → 总分 4.28）
+- C) Add integration tests with STM mocking
+   - 效果：范围/全面但复杂/风险低/质量最高/用户体验保障/复杂度高/工期长（1h）/成本中/可维护性需维护mock（加权：UX 4.8｜代码整洁 4.2｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.44）
+
+Q6. Search functionality - how to enable built-in search?
+- A) Enable search_key="/" in TerminalMenu config ★
+   - 效果：范围/零额外代码/风险极低/质量/库内置/用户体验显著提升（实时过滤）/复杂度无/工期极短（配置参数）/成本无/可维护性完美（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00） ★
+- B) Implement custom search logic
+   - 效果：范围/重复造轮子/风险中/质量/需测试/用户体验可能更差/复杂度高/工期长（1h）/成本高/可维护性差（加权：UX 3.5｜代码整洁 3.0｜部署便捷 4.0｜安全 4.0｜成本 3.0 → 总分 3.54）
+- C) No search feature
+   - 效果：范围/错失特性/风险无/质量/无增强/用户体验/无改进/复杂度无/工期无/成本最低/可维护性现状（加权：UX 3.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.28）
+
+Q7. Code removal - which custom functions to eliminate?
+- A) Remove all custom terminal code (_RawMode/_read_key/viewport/scroll/_prompt_input) ★
+   - 效果：范围/减少~200行/风险低/质量/简化维护/用户体验/库管理/复杂度降低/工期短（并入重构）/成本无/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.92） ★
+- B) Remove only _RawMode/_read_key, keep viewport logic
+   - 效果：范围/部分简化/风险中/质量/混合模式/用户体验改进有限/复杂度中/工期中/成本低/可维护性中（加权：UX 3.8｜代码整洁 3.8｜部署便捷 4.5｜安全 4.5｜成本 4.8 → 总分 4.18）
+- C) Minimal changes, keep most custom code
+   - 效果：范围/保守/风险最低/质量/无改进/用户体验/无增强/复杂度现状/工期无/成本最低/可维护性现状（加权：UX 3.2｜代码整洁 3.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.88）
+
+Q8. Migration strategy - how to ensure no regression?
+- A) Parallel implementation with feature parity check + manual testing ★
+   - 效果：范围/安全迁移/风险最低/质量高（对比验证）/用户体验保持/复杂度低/工期适中（2h total）/成本低/可回滚性完美（加权：UX 4.9｜代码整洁 4.7｜部署便捷 4.8｜安全 5.0｜成本 4.8 → 总分 4.84） ★
+- B) Direct replacement with minimal testing
+   - 效果：范围/快速但冒险/风险高/质量/可能回归/用户体验/不确定/复杂度低/工期最短（1h）/成本最低/可回滚性依赖git（加权：UX 3.5｜代码整洁 4.5｜部署便捷 5.0｜安全 3.0｜成本 5.0 → 总分 4.08）
+- C) Incremental refactoring (keep both implementations temporarily)
+   - 效果：范围/渐进但重/风险中/质量高/用户体验/A/B测试可能/复杂度高/工期长（3h）/成本高（双维护）/可回滚性完美（加权：UX 4.5｜代码整洁 3.5｜部署便捷 4.2｜安全 4.8｜成本 3.5 → 总分 4.14）
+
+建议与权衡：
+- 建议：Q1→B, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
+- 理由：
+  1. simple-term-menu 是成熟库，显著减少代码量（~200行），提升可维护性
+  2. 扁平列表+非可选header保持现有分组UX，无需用户重新学习
+  3. 完整预览面板大幅提升用户体验，无需频繁按Enter查看详情
+  4. click.prompt()替代自定义输入编辑器，减少~25行代码
+  5. 更新测试focus在数据逻辑（_build_rows），渲染交给库
+  6. 内置搜索（按/）零成本提供强大功能，显著提升大列表使用体验
+  7. 移除全部自定义终端代码，降低维护负担和跨平台问题
+  8. 并行实现+对比验证确保功能完全对等，安全迁移
+
