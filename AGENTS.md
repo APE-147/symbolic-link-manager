@@ -102,6 +102,13 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 17:45 - Markdown classification system (Task-3)
+- Implemented `src/symlink_manager/core/classifier.py` with Markdown parser (sections `## Project` + `- pattern`), glob matching, first-match-wins, and graceful fallback to all `unclassified` on missing/invalid config.
+- Added CLI: `python -m symlink_manager.core.classifier --config <path> --scan-path <dir>` printing JSON buckets (includes `unclassified`).
+- Patterns match against absolute, relative-to-scan-root, and basename variants of the symlink path (not the target).
+- Added unit tests `tests/test_classifier.py` covering parsing, relative matching, first-match-wins, and fallback behavior. All tests pass (`pytest -q` → 7 passed).
+- Next: wire buckets into TUI grouping view.
+
 ### 2025-10-13 17:10 - Symlink scanner module (Task-2)
 - Implemented `src/symlink_manager/core/scanner.py` with recursive scan (default `max_depth=20`), circular/broken detection, and graceful permission handling.
 - Added `SymlinkInfo` dataclass (path, name, target, is_broken, project) and JSON CLI: `python -m symlink_manager.core.scanner --scan-path <dir>`.
