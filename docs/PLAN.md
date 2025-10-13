@@ -83,3 +83,80 @@ Q8. 测试与验证策略？
   7. 预检查与干运行提升用户信心
   8. 完整测试覆盖，确保文件操作正确性
 
+---
+
+## Cycle 2 - 2025-10-13 17:05  (@source: REQUIRES.md + immediate UX issue)
+Progress: 50.00%  (4/8 tasks completed from TASKS.md)
+
+**Critical UX Issue: TUI Display Optimization**
+
+Q1. Main list display format for symlink paths?
+- A) Show only basename (filename/link name) ★
+   - 效果：范围/清晰度最优/风险极低/质量/用户体验最佳/复杂度极低/工期最短（15分钟）/成本极低/可维护性强（加权：UX 5.0｜代码整洁 4.8｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.90）
+- B) Show relative path from scan root
+   - 效果：范围/信息量中等/风险低/质量好/用户体验中/复杂度低/工期短（30分钟）/成本低/可维护性强（加权：UX 3.5｜代码整洁 4.2｜部署便捷 4.5｜安全 4.5｜成本 4.5 → 总分 4.08）
+- C) Keep full path (current behavior)
+   - 效果：范围/信息完整但混乱/风险无/质量/用户体验差/复杂度无/工期无/成本无/可维护性现状（加权：UX 1.5｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 3.22）
+
+Q2. Detail view information structure?
+- A) Panel with labeled sections (Name/Symlink Location/Target Path/Status) ★
+   - 效果：范围/信息清晰分层/风险极低/质量最佳/用户体验优秀/复杂度低/工期短（20分钟）/成本低/可观测性强（加权：UX 4.9｜代码整洁 4.6｜部署便捷 4.8｜安全 4.5｜成本 4.8 → 总分 4.76）
+- B) Simple text block without clear structure
+   - 效果：范围/信息混杂/风险低/质量中/用户体验差/复杂度最低/工期最短/成本最低/可观测性弱（加权：UX 2.5｜代码整洁 3.5｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 3.58）
+- C) Table format with rows
+   - 效果：范围/信息结构化/风险低/质量好/用户体验好/复杂度中/工期中（25分钟）/成本低/可观测性强（加权：UX 4.2｜代码整洁 4.4｜部署便捷 4.5｜安全 4.5｜成本 4.5 → 总分 4.42）
+
+Q3. Color coding and visual hierarchy strategy?
+- A) Keep current color scheme (green=valid, red=broken) ★
+   - 效果：范围/一致性/风险无/质量保持/用户体验已验证/复杂度无/工期无/成本无/可访问性好（加权：UX 4.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
+- B) Add more color variations for different states
+   - 效果：范围扩展/视觉丰富/风险低/质量需测试/用户体验可能更好/复杂度中/工期中/成本低/可访问性需注意（加权：UX 4.0｜代码整洁 3.8｜部署便捷 4.0｜安全 4.0｜成本 4.0 → 总分 3.98）
+
+Q4. Path display in detail view terminology?
+- A) Use "Symlink Location" and "Target Path" labels ★
+   - 效果：范围/语义清晰/风险极低/质量/专业术语准确/用户体验最佳/复杂度无/工期极短（5分钟）/成本无/可理解性强（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00）
+- B) Use "Link Path" and "Points To" labels
+   - 效果：范围/语义简化/风险极低/质量/通俗表达/用户体验好/复杂度无/工期极短/成本无/可理解性强（加权：UX 4.5｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
+- C) Use "Source" and "Destination" labels
+   - 效果：范围/语义模糊/风险低/质量/易混淆迁移操作/用户体验中/复杂度无/工期极短/成本无/可理解性弱（加权：UX 3.0｜代码整洁 4.5｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.18）
+
+Q5. Grouping visual separation strategy?
+- A) Keep current approach (text headers with color) ★
+   - 效果：范围/简洁清晰/风险无/质量已验证/用户体验好/复杂度无/工期无/成本无/可维护性强（加权：UX 4.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
+- B) Use Rich panels for each group
+   - 效果：范围/视觉隔离强/风险低/质量好/用户体验更佳/复杂度中/工期中（30分钟）/成本低/可维护性好（加权：UX 4.8｜代码整洁 4.2｜部署便捷 4.5｜安全 5.0｜成本 4.5 → 总分 4.62）
+- C) Use horizontal rules between groups
+   - 效果：范围/视觉分隔轻/风险低/质量好/用户体验中/复杂度低/工期短（15分钟）/成本低/可维护性强（加权：UX 4.2｜代码整洁 4.6｜部署便捷 4.8｜安全 5.0｜成本 4.8 → 总分 4.58）
+
+Q6. Implementation approach - files to modify?
+- A) Modify tui.py display logic only (minimal change) ★
+   - 效果：范围/最小化/风险最低/质量/隔离变更/用户体验修复/复杂度最低/工期最短/成本最低/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.96）
+- B) Refactor SymlinkInfo dataclass to include display fields
+   - 效果：范围/较大/风险中/质量/需修改多处/用户体验修复/复杂度中/工期长/成本中/可维护性需测试（加权：UX 4.5｜代码整洁 3.5｜部署便捷 3.5｜安全 4.0｜成本 3.5 → 总分 3.98）
+
+Q7. Testing strategy for this fix?
+- A) Manual testing with `lk` command + visual verification ★
+   - 效果：范围/适度/风险低/质量/快速反馈/用户体验验证/复杂度低/工期短/成本低/可维护性好（加权：UX 4.8｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.68）
+- B) Add automated TUI snapshot tests
+   - 效果：范围/全面/风险最低/质量最高/用户体验保障/复杂度高/工期长/成本中/可维护性最优（加权：UX 4.5｜代码整洁 4.8｜部署便捷 3.5｜安全 4.8｜成本 3.5 → 总分 4.38）
+- C) No formal testing (quick fix)
+   - 效果：范围/最小/风险高/质量/无保障/用户体验不确定/复杂度无/工期最短/成本最低/可维护性差（加权：UX 3.0｜代码整洁 3.0｜部署便捷 5.0｜安全 2.5｜成本 5.0 → 总分 3.32）
+
+Q8. Deployment and rollback plan?
+- A) Git commit with clear message + tag for easy rollback ★
+   - 效果：范围/标准流程/风险极低/质量/可追溯/用户体验/复杂度无/工期极短（2分钟）/成本无/可回滚性完美（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00）
+- B) Direct commit without special handling
+   - 效果：范围/简化/风险低/质量/基本可追溯/用户体验/复杂度无/工期最短/成本无/可回滚性好（加权：UX 4.5｜代码整洁 4.8｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.82）
+
+建议与权衡：
+- 建议：Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
+- 理由：
+  1. 显示 basename 完美解决路径混乱问题，用户可快速识别链接名称
+  2. Panel 结构化显示确保详情信息清晰可读
+  3. 保持现有配色方案，避免引入不必要的视觉复杂度
+  4. "Symlink Location" / "Target Path" 术语专业且语义明确
+  5. 保持现有分组方式，已验证有效
+  6. 最小化修改范围，仅改 tui.py 显示逻辑，降低风险
+  7. 手动测试快速验证，适合此类 UI 修复
+  8. Git 标准流程确保可追溯和快速回滚
+
