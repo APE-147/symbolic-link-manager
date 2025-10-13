@@ -102,6 +102,13 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 17:10 - Symlink scanner module (Task-2)
+- Implemented `src/symlink_manager/core/scanner.py` with recursive scan (default `max_depth=20`), circular/broken detection, and graceful permission handling.
+- Added `SymlinkInfo` dataclass (path, name, target, is_broken, project) and JSON CLI: `python -m symlink_manager.core.scanner --scan-path <dir>`.
+- Integrated `rich` progress spinner for scan feedback.
+- Added unit tests `tests/test_scanner.py` covering normal, broken, circular, and permission-error scenarios.
+- Next: wire into TUI + classifier.
+
 ### 2025-10-13 16:34 - Project scaffolding (src-layout)
 - Added `pyproject.toml` (Python ≥3.9; deps: click, rich; dev: pytest, ruff; console script `link`).
 - Created package skeleton `src/symlink_manager/` with `cli.py`, `core/`, `services/`, `utils/` and `__init__` files.
