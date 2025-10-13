@@ -16,7 +16,7 @@
   - Unclassified items: display at bottom
 
 ### Global CLI Tool
-- Make the project globally callable using the command: `link`
+- Make the project globally callable using the command: `lk`
 - Interactive CLI features:
   - Navigate and select each symbolic link
   - Press Enter on a selected link to:

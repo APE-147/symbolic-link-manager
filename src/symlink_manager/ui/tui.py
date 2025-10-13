@@ -184,33 +184,48 @@ def _render_list(
 
         item = row.item
         status_text = Text("OK", style="green") if not item.is_broken else Text("BROKEN", style="red")
+        # Display only the basename (link name) in the main list for cleaner UX
         name_text = Text(item.name)
-        target_text = Text(str(item.target), style="dim")
+        # Show target as basename too for consistency, or a shorter representation
+        target_basename = Text(item.target.name if item.target.name else str(item.target), style="dim")
 
         row_style = "reverse" if selected else None
-        tbl.add_row(name_text, target_text, status_text, style=row_style)
+        tbl.add_row(name_text, target_basename, status_text, style=row_style)
         console.print(tbl)
         i += 1
 
 
 def _render_detail(item: SymlinkInfo, *, read_only: bool = True) -> None:
     console.clear()
-    status = Text("OK", style="green") if not item.is_broken else Text("BROKEN", style="red")
+    status = Text("Valid", style="green") if not item.is_broken else Text("Broken", style="red")
+
+    # Build a structured, clear detail view
     body = Text()
-    body.append(f"Name: {item.name}\n")
-    body.append(f"Link: {item.path}\n")
-    body.append(f"Target: {item.target}\n")
-    body.append("Status: ")
+    body.append("Name:\n", style="bold cyan")
+    body.append(f"  {item.name}\n\n")
+
+    body.append("Symlink Location:\n", style="bold cyan")
+    body.append(f"  {item.path}\n\n", style="white")
+
+    body.append("Target Path:\n", style="bold cyan")
+    body.append(f"  {item.target}\n\n", style="white")
+
+    body.append("Status: ", style="bold cyan")
     body.append(status)
     body.append("\n\n")
 
     if read_only:
-        body.append("Modification: ", style="bold")
-        body.append("Disabled in MVP (Task-6 will enable).\n", style="yellow")
+        body.append("Modification: ", style="bold yellow")
+        body.append("Disabled in MVP (Task-6 will enable).\n", style="dim")
     else:
-        body.append("Press 'e' to edit target.\n")
+        body.append("[Press 'e' to edit target]\n", style="dim")
 
-    panel = Panel(body, title="Symlink Details", subtitle="Press any key to return")
+    panel = Panel(
+        body,
+        title="[bold white]Symlink Details[/bold white]",
+        subtitle="[dim]Press any key to return[/dim]",
+        border_style="blue"
+    )
     console.print(panel)
 
 
