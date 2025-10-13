@@ -24,10 +24,11 @@
   * 说明：分类项显示项目名称作为分组；未分类项单独分组在底部；展示链接名称与当前目标路径
   * 测试命令：`lk` (调用全局命令进入交互界面)
 
-* [ ] Task-4.1: 修复 TUI 显示 UX 问题 - 主列表只显示链接名称
+* [x] Task-4.1: 修复 TUI 显示 UX 问题 - 主列表只显示链接名称 (Commit: ebcf493)
   * 要求：主列表显示仅 basename 而非完整路径；详情视图显示完整的 Symlink Location 和 Target Path；保持配色和分组方式
   * 说明：修改 `_render_list()` 使用 `os.path.basename(item.path)` 或 `item.name`；修改 `_render_detail()` 改进信息结构，使用 Panel 清晰标注 "Symlink Location" 和 "Target Path"
   * 测试命令：`pip install -e . && lk` (验证主列表只显示名称，按 Enter 后详情显示完整路径)
+  * 证据：All tests pass (7/7); Changes committed in ebcf493
 
 * [ ] Task-5: 实现目标路径查看与修改功能
   * 要求：选中链接后显示当前目标路径；提供输入框允许用户输入新目标路径；验证新路径有效性（父目录存在、无冲突）

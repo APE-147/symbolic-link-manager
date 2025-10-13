@@ -3,12 +3,12 @@
 ## Header / Project Snapshot
 
 * **Feature Slug**: symlink-manager-mvp
-* **Cycle**: 1
+* **Cycle**: 2
 * **Owner**: Claude Code (codex-feature agent)
 * **Env**: macOS (Darwin 24.6.0)
-* **Progress**: 55.56% (from docs/TASKS.md - 5/9 tasks completed)
-* **Branch**: feat/symlink-manager-mvp (to be created)
-* **Savepoint Tag**: savepoint/2025-10-13-symlink-manager-mvp (to be created)
+* **Progress**: 62.50% (from docs/TASKS.md - 5/8 tasks completed + critical UX fix)
+* **Branch**: feat/symlink-manager-mvp
+* **Savepoint Tag**: savepoint/2025-10-13-tui-ux-fix
 * **FF Status**: Not applicable (CLI tool, no runtime feature flags needed)
 * **Kill Switch**: Not applicable (local CLI tool)
 * **Links**:
@@ -101,6 +101,34 @@ All TODOs mirror `docs/TASKS.md` top-level items.
    - Verification: `pytest tests/ -v --cov=src/symlink_manager` shows ≥80% coverage, all green
 
 ## Run Log (reverse chronological)
+
+### 2025-10-13 17:15 - Critical UX Fix: TUI Display Optimization (Task-4.1) ✅
+- **Issue**: TUI main list displayed full symlink paths, creating cluttered and hard-to-scan interface
+- **Impact**: Users couldn't quickly identify links by name; paths of varying lengths created visual inconsistency
+- **Solution**: Redesigned display to show only basename in main list + structured detail view
+- **Changes Made**:
+  - **Main List**: Modified `_render_list()` to display only `item.name` (basename) instead of full path
+  - **Target Column**: Show target basename for consistency and cleaner visual
+  - **Detail View**: Completely restructured `_render_detail()` with labeled sections:
+    - Name (basename)
+    - Symlink Location (full path where symlink is located)
+    - Target Path (full path where symlink points to)
+    - Status (Valid/Broken with color coding)
+  - Enhanced visual hierarchy: cyan labels, better spacing, blue panel border
+  - Changed status text from "OK/BROKEN" to "Valid/Broken"
+- **Testing**:
+  - All existing tests pass (7/7)
+  - Package reinstalled with `pip install -e .`
+  - Manual verification required: `lk` command
+- **Files Modified**:
+  - `src/symlink_manager/ui/tui.py` (lines 187-229)
+  - `docs/PLAN.md` (added Cycle 2 with 8 decision questions)
+  - `docs/TASKS.md` (marked Task-4.1 complete)
+- **Commits**:
+  - e8c96ad: docs updates (Cycle 2)
+  - ebcf493: TUI UX improvements
+- **Savepoint**: savepoint/2025-10-13-tui-ux-fix
+- **Status**: ✅ Complete - awaiting manual verification with real symlinks
 
 ### 2025-10-13 19:15 - Critical Fix: Renamed CLI command from `link` to `lk` (Blocker resolved)
 - **Issue**: Command name `link` conflicted with Unix system's built-in `/bin/link` command (for creating hard links)
