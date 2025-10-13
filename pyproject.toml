@@ -39,7 +39,7 @@ dev = [
 ]
 
 [project.scripts]
-link = "symlink_manager.cli:main"
+lk = "symlink_manager.cli:main"
 
 [tool.ruff]
 line-length = 100

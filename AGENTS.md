@@ -82,7 +82,7 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 4. **[ ] Task-4: Implement interactive TUI**
    - Acceptance: Display classified (top) and unclassified (bottom) links; keyboard navigation works
-   - Verification: `link` command launches TUI; arrow keys navigate; Enter selects
+   - Verification: `lk` command launches TUI; arrow keys navigate; Enter selects
 
 5. **[ ] Task-5: Implement target path view & modification**
    - Acceptance: Show current target; accept new target input; validate before migration
@@ -93,8 +93,8 @@ All TODOs mirror `docs/TASKS.md` top-level items.
    - Verification: `python -m symlink_manager.services.migrator --dry-run` shows plan; actual run creates backup
 
 7. **[ ] Task-7: Implement global CLI installation**
-   - Acceptance: `pip install -e .` installs; `link` command globally available
-   - Verification: `link --version`, `link --help` work from any directory
+   - Acceptance: `pip install -e .` installs; `lk` command globally available
+   - Verification: `lk --version`, `lk --help` work from any directory
 
 8. **[ ] Task-8: Implement test suite & quality gates**
    - Acceptance: Unit + integration tests; ≥80% coverage; all tests pass
@@ -102,11 +102,28 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 
 ## Run Log (reverse chronological)
 
+### 2025-10-13 19:15 - Critical Fix: Renamed CLI command from `link` to `lk` (Blocker resolved)
+- **Issue**: Command name `link` conflicted with Unix system's built-in `/bin/link` command (for creating hard links)
+- **Impact**: Users could not launch the tool - running `link` invoked system command instead of our CLI
+- **Solution**: Renamed CLI command to `lk` to avoid conflict
+- **Changes made**:
+  - Updated `pyproject.toml`: `[project.scripts]` entry point from `link` to `lk`
+  - Updated `cli.py`: changed prog_name from "link" to "lk" and config path from `~/.config/link/` to `~/.config/lk/`
+  - Updated all documentation: REQUIRES.md, TASKS.md, FEATURE_SPEC.md, AGENTS.md, README.md
+  - Updated all examples and acceptance criteria
+- **Verification**:
+  - `pip install -e .` completed successfully
+  - `lk --version` outputs: "symlink-manager, version 0.1.0"
+  - `lk --help` displays correct usage information
+  - `which lk` confirms command at: `/Users/niceday/Developer/Python/miniconda/envs/System/bin/lk`
+  - Unix `link` command still at `/bin/link` (no conflict)
+- **Status**: Blocker resolved, tool now fully accessible via `lk` command
+
 ### 2025-10-13 18:20 - Interactive TUI (Task-4)
 - Added `src/symlink_manager/ui/tui.py` using Rich for rendering and a raw terminal key handler for navigation.
 - Features: grouped list (classified first, `unclassified` last), color-coded status (green OK, red BROKEN), arrow/j/k navigation, Enter opens read-only detail view, q/Esc to quit.
-- Integrated with scanner + classifier; reads config from `--config` or `~/.config/link/projects.md` fallback.
-- Wired CLI default command to launch TUI: `link [--target PATH] [--config FILE]` (group options on root command). Keeps operations read-only.
+- Integrated with scanner + classifier; reads config from `--config` or `~/.config/lk/projects.md` fallback.
+- Wired CLI default command to launch TUI: `lk [--target PATH] [--config FILE]` (group options on root command). Keeps operations read-only.
 - Next: implement editable target input + validation (Task-5) and safe migration (Task-6).
 
 ### 2025-10-13 17:45 - Markdown classification system (Task-3)
@@ -124,7 +141,7 @@ All TODOs mirror `docs/TASKS.md` top-level items.
 - Next: wire into TUI + classifier.
 
 ### 2025-10-13 16:34 - Project scaffolding (src-layout)
-- Added `pyproject.toml` (Python ≥3.9; deps: click, rich; dev: pytest, ruff; console script `link`).
+- Added `pyproject.toml` (Python ≥3.9; deps: click, rich; dev: pytest, ruff; console script `lk`).
 - Created package skeleton `src/symlink_manager/` with `cli.py`, `core/`, `services/`, `utils/` and `__init__` files.
 - Added `README.md` and `CHANGELOG.md` placeholders.
 - Next: wire scanner/classifier stubs to CLIs, add tests and data dirs.
