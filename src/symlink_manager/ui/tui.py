@@ -302,7 +302,6 @@ def _render_list(
                 pad_edge=False,
                 padding=(0, 1),
                 collapse_padding=True,
-                width=term_width - 2
             )
             current_table.add_column("Name", no_wrap=True, width=name_width)
             current_table.add_column("Target", no_wrap=True, width=target_width)
@@ -320,7 +319,6 @@ def _render_list(
                 pad_edge=False,
                 padding=(0, 1),
                 collapse_padding=True,
-                width=term_width - 2
             )
             current_table.add_column("Name", no_wrap=True, width=name_width)
             current_table.add_column("Target", no_wrap=True, width=target_width)
