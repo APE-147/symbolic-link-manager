@@ -386,11 +386,12 @@ def run_tui(
             search_key="/",  # Press / to search
         )
 
+        # Render header once before entering menu loop
+        console.clear()
+        _render_header(scan_path, total_items, is_filtered)
+
         # Main loop
         while True:
-            # Ensure a clean menu surface with a single header line above it
-            console.clear()
-            _render_header(scan_path, total_items, is_filtered)
             selected_idx = menu.show()
 
             # User quit (Esc or q)
@@ -408,6 +409,10 @@ def run_tui(
                 break
             elif action == "edit":
                 _handle_edit(selected_item, scan_path)
+
+            # Re-render header after returning from detail/edit views
+            console.clear()
+            _render_header(scan_path, total_items, is_filtered)
 
     # Alternate screen buffer automatically restored by context manager
     return 0
