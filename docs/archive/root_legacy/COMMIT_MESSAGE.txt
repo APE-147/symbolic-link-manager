@@ -1,0 +1,56 @@
+fix: Eliminate TUI display flickering, scrollback pollution, and header residue
+
+## Problem
+The TUI suffered from three critical display issues:
+1. Screen flickering/jittering during navigation
+2. Excessive downward scrolling polluting terminal scrollback
+3. Header residue remaining at top after navigation
+
+## Root Causes
+- TerminalMenu clear_screen=True causing full screen clear on every redraw
+- Multiple unnecessary console.clear() calls
+- No alternate screen buffer usage (standard for TUI apps)
+- No terminal size adaptation
+
+## Solution
+1. Wrapped run_tui() in Rich's console.screen() context manager for alternate screen buffer
+2. Set clear_screen=False and clear_menu_on_exit=False in all TerminalMenu instances
+3. Added terminal size detection with adaptive preview and menu height limiting
+4. Removed unnecessary console.clear() calls, kept only strategic ones for view transitions
+
+## Changes
+- Added _get_terminal_size() utility function for terminal dimension detection
+- Wrapped TUI main loop in with console.screen() context
+- Optimized TerminalMenu parameters: clear_screen=False, clear_menu_on_exit=False
+- Added adaptive preview_size (30% on ≥100 cols, disabled on <100)
+- Added menu_entries_max_height to prevent overflow
+- Removed final console.clear() (context manager handles cleanup)
+
+## Testing
+- All 31 existing tests pass (pytest -q)
+- No functionality regressions
+- Manual testing documented in docs/TESTING.md
+
+## Benefits
+- Zero screen flickering during navigation
+- No scrollback pollution (TUI isolated in alternate buffer)
+- No header residue (clean screen restoration)
+- Adaptive terminal size support (80×24 to 200×60+)
+- Professional TUI behavior matching vim, less, htop
+
+## Files Modified
+- src/symlink_manager/ui/tui.py (~55 lines: 40 modified, 15 added)
+
+## Documentation
+- docs/REQUIRES.md - Requirements baseline
+- docs/PLAN.md - Decision questions and rationale
+- docs/TASKS.md - Task checklist (8/8 completed)
+- docs/FEATURE_SPEC.md - Comprehensive specification
+- docs/TESTING.md - Manual testing guide (10 test cases)
+- docs/CHANGES_SUMMARY.md - Detailed changes overview
+- AGENTS.md - Project state tracking
+
+Generated with Claude Code
+https://claude.com/claude-code
+
+Co-Authored-By: Claude <noreply@anthropic.com>

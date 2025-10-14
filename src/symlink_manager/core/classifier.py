@@ -152,6 +152,205 @@ def classify_symlinks(
     return result
 
 
+# ---- Hierarchical Classification with Auto-Detection ------------------------
+
+def _extract_path_hierarchy(symlink_path: Path, scan_root: Path) -> tuple[str, str]:
+    """Extract Level 2 (folder) and Level 3 (project) from path structure.
+
+    Args:
+        symlink_path: Full path to symlink
+        scan_root: Scan root directory
+
+    Returns:
+        (secondary_category, project_name)
+
+    Example:
+        symlink_path = /Users/me/Developer/Desktop/Projects/MyApp/data
+        scan_root = /Users/me/Developer
+        → ("Desktop", "Projects")
+
+        symlink_path = /Users/me/Desktop/Tools/ToolX/config
+        scan_root = /Users/me/Desktop
+        → ("Tools", "ToolX")
+    """
+    try:
+        # Get relative path from scan root
+        rel_path = symlink_path.relative_to(scan_root)
+        parts = rel_path.parts
+
+        if len(parts) == 0:
+            return ("unclassified", "unclassified")
+        elif len(parts) == 1:
+            # Symlink directly under scan_root
+            return ("root", symlink_path.name)
+        elif len(parts) == 2:
+            # scan_root/folder/symlink
+            return (parts[0], symlink_path.name)
+        else:
+            # scan_root/category/folder/project/symlink
+            # Use first part as secondary, second as project
+            secondary = parts[0]
+            project = parts[1]
+            return (secondary, project)
+
+    except ValueError:
+        # Path not relative to scan_root, use parent directories
+        parent = symlink_path.parent
+        grandparent = parent.parent if parent.parent != parent else None
+
+        if grandparent and grandparent != parent:
+            return (parent.name, symlink_path.name)
+        else:
+            return (parent.name, symlink_path.name)
+
+
+def _detect_hierarchy_from_primary(
+    symlink_path: Path,
+    primary_match_pattern: str
+) -> tuple[str, str]:
+    """Extract hierarchy based on where primary pattern matched.
+
+    Args:
+        symlink_path: /Users/me/Desktop/Projects/MyApp/data
+        primary_match_pattern: /Users/*/Desktop/**/*
+
+    Returns:
+        (secondary, project)
+
+    Logic:
+        1. Find where pattern matched (e.g., /Users/me/Desktop/)
+        2. Extract remaining path parts (Projects/MyApp/data)
+        3. First part = secondary, second part = project
+    """
+    # Strip trailing glob patterns to get the base pattern
+    base_pattern = primary_match_pattern
+    for suffix in ["/**/*", "/**", "/*", "*"]:
+        if base_pattern.endswith(suffix):
+            base_pattern = base_pattern[:-len(suffix)]
+            break
+
+    # Convert pattern to parts for matching
+    pattern_parts = list(Path(base_pattern).parts)
+    path_parts = list(symlink_path.parts)
+
+    # Find where the pattern matches in the path
+    match_end_idx = None
+    for i in range(len(path_parts) - len(pattern_parts) + 1):
+        matched = True
+        for j, pattern_part in enumerate(pattern_parts):
+            if pattern_part == "*" or pattern_part == "**":
+                continue
+            if i + j >= len(path_parts) or pattern_part != path_parts[i + j]:
+                matched = False
+                break
+        if matched:
+            match_end_idx = i + len(pattern_parts)
+            break
+
+    if match_end_idx is None or match_end_idx >= len(path_parts):
+        # Fallback to parent/grandparent
+        return (symlink_path.parent.name, symlink_path.name)
+
+    # Extract parts after match
+    remaining_parts = path_parts[match_end_idx:]
+
+    if len(remaining_parts) == 0:
+        return ("root", symlink_path.name)
+    elif len(remaining_parts) == 1:
+        return ("root", remaining_parts[0])
+    else:
+        return (remaining_parts[0], remaining_parts[1])
+
+
+def _matches_pattern(symlink: SymlinkInfo, pattern: str, scan_root: Optional[Path]) -> bool:
+    """Check if symlink matches a pattern (reusing existing logic)."""
+    variants = _path_variants(symlink.path, scan_root)
+
+    # Expand ~ in pattern to home directory
+    if pattern.startswith("~/"):
+        pattern = str(Path.home()) + pattern[1:]
+
+    for variant in variants:
+        if fnmatch.fnmatch(variant, pattern):
+            return True
+    return False
+
+
+def classify_symlinks_auto_hierarchy(
+    symlinks: List[SymlinkInfo],
+    config: "OrderedDict[str, list[str]]",
+    *,
+    scan_root: Path
+) -> Dict[str, Dict[str, List[SymlinkInfo]]]:
+    """Classify symlinks with auto-detected hierarchy.
+
+    Level 1: Manual (from config - primary category names)
+    Level 2 & 3: Auto-detected from path structure
+
+    Args:
+        symlinks: List of discovered symlinks
+        config: Simplified config mapping primary_name → patterns
+        scan_root: Root directory for path calculations
+
+    Returns:
+        {
+            "Desktop": {
+                "Projects": [symlink1, symlink2, ...],
+                "Tools": [symlink3, ...]
+            },
+            "Service": {...},
+            "System": {...},
+            "unclassified": {"unclassified": [...]}
+        }
+    """
+    result: Dict[str, Dict[str, List[SymlinkInfo]]] = {}
+
+    for symlink in symlinks:
+        matched_primary = None
+        matched_pattern = None
+
+        # Step 1: Match Level 1 (Primary Category) from config
+        for primary_name, patterns in config.items():
+            for pattern in patterns:
+                if _matches_pattern(symlink, pattern, scan_root):
+                    matched_primary = primary_name
+                    matched_pattern = pattern
+                    break
+            if matched_primary:
+                break
+
+        # If no Level 1 match, put in unclassified
+        if not matched_primary:
+            matched_primary = "unclassified"
+            secondary = "unclassified"
+            project = symlink.name
+        else:
+            # Step 2: Auto-detect Level 2 & 3 from path structure
+            secondary, project = _detect_hierarchy_from_primary(
+                symlink.path,
+                matched_pattern
+            )
+
+        # Step 3: Update symlink with hierarchy info
+        symlink_with_hierarchy = replace(
+            symlink,
+            primary_category=matched_primary,
+            secondary_category=secondary,
+            project_name=project,
+            project=matched_primary  # Maintain backward compat
+        )
+
+        # Step 4: Add to result structure
+        if matched_primary not in result:
+            result[matched_primary] = {}
+        if secondary not in result[matched_primary]:
+            result[matched_primary][secondary] = []
+
+        result[matched_primary][secondary].append(symlink_with_hierarchy)
+
+    return result
+
+
 # ---- CLI (module entry point) -----------------------------------------------
 
 import sys
