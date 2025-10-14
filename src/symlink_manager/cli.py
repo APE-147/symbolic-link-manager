@@ -82,6 +82,16 @@ def _default_config_path() -> Optional[Path]:
     default=False,
     help="Include symlinks with garbled names (default: filter them out).",
 )
+@click.option(
+    "include_hash_targets",
+    "--include-hash-targets",
+    is_flag=True,
+    default=False,
+    help=(
+        "Include symlinks whose targets look like hashes (Dropbox cache-style). "
+        "By default these are filtered out."
+    ),
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -93,6 +103,7 @@ def cli(
     exclude_patterns: Tuple[str, ...],
     include_files: bool,
     include_garbled: bool,
+    include_hash_targets: bool,
 ) -> None:
     """Symlink Manager CLI.
 
@@ -130,6 +141,9 @@ def cli(
                     filter_rules.directories_only = False
                 if include_garbled:
                     filter_rules.filter_garbled = False
+                # Apply CLI flag for hash-target filtering (opt-out)
+                if include_hash_targets:
+                    filter_rules.filter_hash_targets = False
             except ValueError as e:
                 click.echo(f"[error] Filter config error: {e}", err=True)
                 ctx.exit(2)

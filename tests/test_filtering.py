@@ -306,3 +306,83 @@ def test_filter_rules_default_values():
 
     assert rules.directories_only is True
     assert rules.filter_garbled is True
+
+
+def test_hash_like_name_detection():
+    """Test detection of hash-like target names with ACTUAL Dropbox hashes."""
+    from symlink_manager.core.scanner import _is_hash_like_name
+
+    # ACTUAL Dropbox hashes from user's output (MUST be detected)
+    dropbox_hashes = [
+        "1R3_9ZoEWvefI4rTylIiU",
+        "6UA9a6LZnqYXSA8WzC-ZV",
+        "tv5NqM2yTK-Aik4TtsKhy",
+        "pzl5hFDLa-32dKP6a8g4U",
+        "4ST9V50OiHPY6-3rJf-ui",
+        "vXl-51VXN9oL4BHwxOC5Q",
+        "Drj342tLwOyOwhj9--HVA",
+        "40LzdGD4hWt7iHxo1oQzR",
+        "iUvBobAubJTesUfDTxjnm",
+        "ebm4FRwMjKFxacDzB2xZ2",
+        "96mCac_TRMg01J1zpgMSS",  # allow underscore
+    ]
+
+    for hash_name in dropbox_hashes:
+        result = _is_hash_like_name(hash_name)
+        assert result is True, f"Failed to detect Dropbox hash: {hash_name}"
+
+    # Normal names (should NOT be detected)
+    normal_names = [
+        "my-project",
+        "my-project-data",
+        "video-downloader",
+        "some_module",
+        "package123",
+        "custom",
+        "rss-inbox-data",
+        "Raycast backup",
+        "MediaCrawler",
+        "build-depends.sh",
+    ]
+
+    for normal_name in normal_names:
+        result = _is_hash_like_name(normal_name)
+        assert result is False, f"False positive: {normal_name} detected as hash"
+
+    # Edge cases
+    assert _is_hash_like_name("aaaaaaaaaaaaaaaaaaaa") is False  # low diversity
+    assert _is_hash_like_name("01234567890123456789") is False  # digits-only
+
+
+def test_filter_hash_targets_integration(tmp_path: Path):
+    # Create realistic structure: version-like symlink pointing to hash-like dir
+    cache_dir = tmp_path / "40LzdGD4hWt7iHxo1oQzR"
+    cache_dir.mkdir()
+
+    normal_dir = tmp_path / "my_project"
+    normal_dir.mkdir()
+
+    scan_dir = tmp_path / "scan"
+    scan_dir.mkdir()
+
+    (scan_dir / "4.12.2-py3-none-any").symlink_to(cache_dir)
+    (scan_dir / "project").symlink_to(normal_dir)
+
+    # Default filtering should hide the hash-target link
+    results = scan_symlinks(scan_dir)
+    names = {s.name for s in results}
+    assert "project" in names
+    assert "4.12.2-py3-none-any" not in names
+
+    # Opt-out should show both
+    results_all = scan_symlinks(scan_dir, filter_hash_targets=False)
+    names_all = {s.name for s in results_all}
+    assert "project" in names_all
+    assert "4.12.2-py3-none-any" in names_all
+
+    # Broken symlinks should not be filtered by hash logic
+    broken = scan_dir / "broken_version"
+    broken.symlink_to(tmp_path / "iUvBobAubJTesUfDTxjnm")  # missing target, hash-like name
+    results_with_broken = scan_symlinks(scan_dir)
+    names_broken = {s.name for s in results_with_broken}
+    assert "broken_version" in names_broken

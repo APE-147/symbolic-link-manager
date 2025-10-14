@@ -51,7 +51,7 @@ def test_build_rows_creates_headers_before_groups():
     assert len(rows) == 5, f"Expected 5 rows (2 headers + 3 items), got {len(rows)}"
 
     # Verify first group
-    assert rows[0].kind == "header", f"Row 0 should be header, got {rows[0].kind}"
+    assert rows[0].kind == "primary_header", f"Row 0 should be primary_header, got {rows[0].kind}"
     assert rows[0].title == "project-a", f"Row 0 title should be 'project-a', got {rows[0].title}"
 
     assert rows[1].kind == "item", f"Row 1 should be item, got {rows[1].kind}"
@@ -61,7 +61,7 @@ def test_build_rows_creates_headers_before_groups():
     assert rows[2].item.name == "link2", f"Row 2 item name should be 'link2', got {rows[2].item.name}"
 
     # Verify second group
-    assert rows[3].kind == "header", f"Row 3 should be header, got {rows[3].kind}"
+    assert rows[3].kind == "primary_header", f"Row 3 should be primary_header, got {rows[3].kind}"
     assert rows[3].title == "unclassified", f"Row 3 title should be 'unclassified', got {rows[3].title}"
 
     assert rows[4].kind == "item", f"Row 4 should be item, got {rows[4].kind}"
@@ -105,10 +105,11 @@ def test_build_rows_unclassified_appears_last():
 
     rows = _build_rows(buckets)
 
-    # Find header rows
-    headers = [r for r in rows if r.kind == "header"]
+    # Find primary header rows
+    headers = [r for r in rows if r.kind == "primary_header"]
 
     # The last header should be "unclassified"
+    assert len(headers) > 0, "Expected at least one header row"
     assert headers[-1].title == "unclassified", (
         f"Last header should be 'unclassified', got '{headers[-1].title}'"
     )
@@ -142,8 +143,8 @@ def test_build_rows_row_kind_is_correct():
     # Should have 1 header + 1 item
     assert len(rows) == 2, f"Expected 2 rows, got {len(rows)}"
 
-    # First should be header
-    assert rows[0].kind == "header", f"Row 0 should be 'header', got '{rows[0].kind}'"
+    # First should be primary_header
+    assert rows[0].kind == "primary_header", f"Row 0 should be 'primary_header', got '{rows[0].kind}'"
     assert rows[0].item is None, "Header row should have item=None"
 
     # Second should be item

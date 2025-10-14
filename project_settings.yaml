@@ -1,0 +1,26 @@
+project:
+  name: symbolic_link_changer
+  feature_slug: hierarchical-3level-classification
+  cycle: 3
+  owner: codex-feature agent
+structure_contract:
+  root_allowed:
+    - AGENTS.md
+    - README.md
+    - project_settings.yaml
+    - .gitignore
+    - pyproject.toml
+    - data/
+    - docs/
+    - src/
+    - tests/
+  docs_core:
+    - docs/REQUIRES.md
+    - docs/PLAN.md
+    - docs/TASKS.md
+  docs_archive: docs/archive
+quality_gates:
+  tests: pytest -q
+  lint: null
+notes: |
+  Maintains minimal root layout and archives historical documentation under docs/archive.

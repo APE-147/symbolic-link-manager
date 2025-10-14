@@ -24,6 +24,8 @@ Capabilities (read-only for MVP):
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import shutil
+import sys
 import click
 
 from rich.console import Console
@@ -35,6 +37,7 @@ from simple_term_menu import TerminalMenu
 from ..core.scanner import SymlinkInfo, scan_symlinks
 from ..core.classifier import (
     classify_symlinks,
+    classify_symlinks_auto_hierarchy,
     load_markdown_config,
 )
 from ..services.validator import validate_target_change, ValidationResult
@@ -43,14 +46,26 @@ from ..services.validator import validate_target_change, ValidationResult
 console = Console()
 
 
+# ---- Terminal utility functions ---------------------------------------------
+
+def _get_terminal_size() -> tuple[int, int]:
+    """Get terminal size safely. Returns (columns, rows)."""
+    try:
+        cols, rows = shutil.get_terminal_size()
+        return cols, rows
+    except Exception:
+        return 80, 24  # Fallback to standard size
+
+
 # ---- View model -------------------------------------------------------------
 
 @dataclass
 class _Row:
-    kind: str  # 'header' | 'item'
+    kind: str  # 'primary_header' | 'secondary_header' | 'item'
     title: Optional[str] = None
     project: Optional[str] = None
     item: Optional[SymlinkInfo] = None
+    indent_level: int = 0  # 0 for primary, 1 for secondary, 2 for items
 
 
 def _build_rows(buckets: Dict[str, List[SymlinkInfo]]) -> List[_Row]:
@@ -64,9 +79,46 @@ def _build_rows(buckets: Dict[str, List[SymlinkInfo]]) -> List[_Row]:
         keys.append("unclassified")
 
     for proj in keys:
-        rows.append(_Row(kind="header", title=proj))
+        rows.append(_Row(kind="primary_header", title=proj, indent_level=0))
         for item in buckets.get(proj, []):
-            rows.append(_Row(kind="item", project=proj, item=item))
+            rows.append(_Row(kind="item", project=proj, item=item, indent_level=1))
+    return rows
+
+
+def _build_rows_hierarchical(hierarchical_buckets: Dict[str, Dict[str, List[SymlinkInfo]]]) -> List[_Row]:
+    """Flatten 3-level hierarchical buckets into rows with proper indentation.
+
+    Format:
+        [PRIMARY]
+          [Secondary]
+            ✓ project → target
+
+    Args:
+        hierarchical_buckets: Dict[primary, Dict[secondary, List[SymlinkInfo]]]
+
+    Returns:
+        List of _Row objects with indent_level set
+    """
+    rows: list[_Row] = []
+
+    # Ensure unclassified appears last
+    primary_keys = [k for k in hierarchical_buckets.keys() if k != "unclassified"]
+    if "unclassified" in hierarchical_buckets:
+        primary_keys.append("unclassified")
+
+    for primary in primary_keys:
+        # Add primary header (Level 1)
+        rows.append(_Row(kind="primary_header", title=primary, indent_level=0))
+
+        secondary_buckets = hierarchical_buckets[primary]
+        for secondary in sorted(secondary_buckets.keys()):
+            # Add secondary header (Level 2)
+            rows.append(_Row(kind="secondary_header", title=secondary, indent_level=1))
+
+            # Add items (Level 3)
+            for item in secondary_buckets[secondary]:
+                rows.append(_Row(kind="item", project=primary, item=item, indent_level=2))
+
     return rows
 
 
@@ -91,6 +143,16 @@ def _generate_preview(item: Optional[SymlinkInfo]) -> str:
     lines.append("Press Enter for details and actions")
 
     return "\n".join(lines)
+
+
+def _render_header(scan_path: Path, total_items: int, is_filtered: bool) -> None:
+    """Render a single-line header above the menu to avoid title duplication."""
+    filter_label = " (filtered)" if is_filtered else ""
+    header = Text(
+        f"Symbolic Link Manager | Scan: {scan_path} | Items: {total_items}{filter_label}",
+        style="bold",
+    )
+    console.print(header)
 
 
 def _render_detail(item: SymlinkInfo, *, read_only: bool = True, proposed: Optional[Path] = None, validation: Optional[ValidationResult] = None) -> None:
@@ -160,6 +222,7 @@ def _show_detail_menu(item: SymlinkInfo, scan_path: Path) -> str:
         menu_cursor_style=("fg_cyan", "bold"),
         menu_highlight_style=("bg_cyan", "fg_black"),
         clear_screen=False,
+        clear_menu_on_exit=False,
     )
 
     choice = action_menu.show()
@@ -237,6 +300,7 @@ def run_tui(
     exclude_patterns = None
     directories_only = True
     filter_garbled = True
+    filter_hash_targets = True
     is_filtered = False
     if filter_rules is not None:
         from ..core.filter_config import FilterRules
@@ -244,7 +308,8 @@ def run_tui(
             exclude_patterns = filter_rules.exclude_patterns
             directories_only = filter_rules.directories_only
             filter_garbled = filter_rules.filter_garbled
-            is_filtered = bool(exclude_patterns) or directories_only or filter_garbled
+            filter_hash_targets = filter_rules.filter_hash_targets
+            is_filtered = bool(exclude_patterns) or directories_only or filter_garbled or filter_hash_targets
 
     # Scan and classify
     symlinks = scan_symlinks(
@@ -253,9 +318,12 @@ def run_tui(
         exclude_patterns=exclude_patterns,
         directories_only=directories_only,
         filter_garbled=filter_garbled,
+        filter_hash_targets=filter_hash_targets,
     )
-    buckets = classify_symlinks(symlinks, config, scan_root=scan_path)
-    rows = _build_rows(buckets)
+
+    # Use hierarchical classification with auto-detection
+    hierarchical_buckets = classify_symlinks_auto_hierarchy(symlinks, config, scan_root=scan_path)
+    rows = _build_rows_hierarchical(hierarchical_buckets)
 
     # If nothing to show, print a friendly message and exit
     if _count_items(rows) == 0:
@@ -263,65 +331,83 @@ def run_tui(
         console.print(Panel(Text("No symlinks found.", style="yellow"), title="Nothing to Display"))
         return 0
 
-    # Build menu entries with grouping
-    menu_items = []
-    item_to_symlink = {}  # Map menu index to SymlinkInfo
+    # Use alternate screen buffer to prevent scrollback pollution and flickering
+    with console.screen():
+        # Detect terminal size for adaptive behavior
+        cols, rows_count = _get_terminal_size()
+        preview_size = 0.3 if cols >= 100 else 0  # Disable preview on narrow terminals
 
-    for idx, row in enumerate(rows):
-        if row.kind == "header":
-            # Add group header (non-selectable)
-            title = row.title or "unknown"
-            style_name = "bold magenta" if title != "unclassified" else "bold yellow"
-            # Format: [PROJECT_NAME] style
-            menu_items.append(f"[{title.upper()}]")
-            item_to_symlink[len(menu_items) - 1] = None
-        else:
-            # Add item
-            item = row.item
-            status = "✓" if not item.is_broken else "✗"
-            target_name = item.target.name if item.target and item.target.name else str(item.target)
-            display = f"  {status} {item.name} → {target_name}"
-            menu_items.append(display)
-            item_to_symlink[len(menu_items) - 1] = item
+        # Build menu entries with hierarchical indentation
+        menu_items = []
+        item_to_symlink = {}  # Map menu index to SymlinkInfo
 
-    # Create menu with simple-term-menu
-    total_items = _count_items(rows)
-    filter_label = " (filtered)" if is_filtered else ""
-    menu = TerminalMenu(
-        menu_items,
-        title=f"Symbolic Link Manager | Scan: {scan_path} | Items: {total_items}{filter_label}",
-        menu_cursor="→ ",
-        menu_cursor_style=("fg_cyan", "bold"),
-        menu_highlight_style=("bg_cyan", "fg_black"),
-        cycle_cursor=True,
-        clear_screen=True,
-        preview_command=lambda idx: _generate_preview(item_to_symlink.get(idx)),
-        preview_size=0.3,  # 30% of screen for preview
-        skip_empty_entries=True,  # Skip headers when navigating
-        status_bar=f"↑/↓ Navigate | Enter Details | / Search | q Quit",
-        status_bar_style=("fg_cyan",),
-        search_key="/",  # Press / to search
-    )
+        for idx, row in enumerate(rows):
+            # Calculate indentation (2 spaces per level)
+            indent = "  " * row.indent_level
 
-    # Main loop
-    while True:
-        selected_idx = menu.show()
+            if row.kind == "primary_header":
+                # Primary category header (Level 1)
+                title = row.title or "unknown"
+                menu_items.append(f"{indent}[{title.upper()}]")
+                item_to_symlink[len(menu_items) - 1] = None
 
-        # User quit (Esc or q)
-        if selected_idx is None:
-            break
+            elif row.kind == "secondary_header":
+                # Secondary category header (Level 2)
+                title = row.title or "unknown"
+                menu_items.append(f"{indent}[{title}]")
+                item_to_symlink[len(menu_items) - 1] = None
 
-        # Get selected item
-        selected_item = item_to_symlink.get(selected_idx)
-        if selected_item is None:
-            continue  # Header selected (shouldn't happen with skip_empty_entries), ignore
+            elif row.kind == "item":
+                # Symlink item (Level 3)
+                item = row.item
+                status = "✓" if not item.is_broken else "✗"
+                target_name = item.target.name if item.target and item.target.name else str(item.target)
+                # Show project_name from hierarchy instead of just item.name
+                project_name = item.project_name or item.name
+                display = f"{indent}{status} {project_name} → {target_name}"
+                menu_items.append(display)
+                item_to_symlink[len(menu_items) - 1] = item
 
-        # Handle actions
-        action = _show_detail_menu(selected_item, scan_path)
-        if action == "quit":
-            break
-        elif action == "edit":
-            _handle_edit(selected_item, scan_path)
+        # Create menu with optimized settings to prevent flickering
+        total_items = _count_items(rows)
+        menu = TerminalMenu(
+            menu_items,
+            menu_cursor="→ ",
+            menu_cursor_style=("fg_cyan", "bold"),
+            menu_highlight_style=("bg_cyan", "fg_black"),
+            cycle_cursor=True,
+            clear_screen=False,  # Don't clear screen - we're in alternate buffer
+            clear_menu_on_exit=False,  # Don't clear on exit
+            preview_command=lambda idx: _generate_preview(item_to_symlink.get(idx)),
+            preview_size=preview_size,
+            skip_empty_entries=True,  # Skip headers when navigating
+            status_bar=f"↑/↓ Navigate | Enter Details | / Search | q Quit",
+            status_bar_style=("fg_cyan",),
+            search_key="/",  # Press / to search
+        )
 
-    console.clear()
+        # Main loop
+        while True:
+            # Ensure a clean menu surface with a single header line above it
+            console.clear()
+            _render_header(scan_path, total_items, is_filtered)
+            selected_idx = menu.show()
+
+            # User quit (Esc or q)
+            if selected_idx is None:
+                break
+
+            # Get selected item
+            selected_item = item_to_symlink.get(selected_idx)
+            if selected_item is None:
+                continue  # Header selected (shouldn't happen with skip_empty_entries), ignore
+
+            # Handle actions
+            action = _show_detail_menu(selected_item, scan_path)
+            if action == "quit":
+                break
+            elif action == "edit":
+                _handle_edit(selected_item, scan_path)
+
+    # Alternate screen buffer automatically restored by context manager
     return 0

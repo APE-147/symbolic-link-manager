@@ -44,6 +44,7 @@ class FilterRules:
     use_regex: bool = False
     directories_only: bool = True  # NEW: Show only directory symlinks by default
     filter_garbled: bool = True    # NEW: Filter garbled names by default
+    filter_hash_targets: bool = True  # NEW: Filter symlinks whose targets look like hashes (Dropbox cache-style)
 
     def should_include(self, symlink_name: str) -> bool:
         """Determine if a symlink should be included based on filter rules.
@@ -115,6 +116,7 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
             use_regex=False,
             directories_only=True,
             filter_garbled=True,
+            filter_hash_targets=True,
         )
 
     # Determine config file path
@@ -132,6 +134,7 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
             use_regex=False,
             directories_only=True,
             filter_garbled=True,
+            filter_hash_targets=True,
         )
 
     # Parse YAML
@@ -167,6 +170,7 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
     use_regex = bool(data.get('use_regex', False))
     directories_only = bool(data.get('directories_only', True))
     filter_garbled = bool(data.get('filter_garbled', True))
+    filter_hash_targets = bool(data.get('filter_hash_targets', True))
 
     return FilterRules(
         include_patterns=include_patterns,
@@ -175,6 +179,7 @@ def load_filter_config(config_path: Optional[Path] = None) -> FilterRules:
         use_regex=use_regex,
         directories_only=directories_only,
         filter_garbled=filter_garbled,
+        filter_hash_targets=filter_hash_targets,
     )
 
 
@@ -203,4 +208,5 @@ def merge_cli_patterns(
         use_regex=rules.use_regex,
         directories_only=rules.directories_only,
         filter_garbled=rules.filter_garbled,
+        filter_hash_targets=rules.filter_hash_targets,
     )
