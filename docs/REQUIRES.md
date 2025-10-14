@@ -2,7 +2,47 @@
 
 > 手动维护：记录最原始需求与应用场景；仅允许人工在顶部追加最新需求块；历史不得改写。
 
-## Latest Requirement (2025-10-14 14:00) - Hierarchical 3-Level Classification System
+## Latest Requirement (2025-10-14 16:30) - TUI Framework Refactoring to Textual
+
+### 原始需求
+当前使用 simple-term-menu + Rich 实现 TUI，存在终端渲染残留(粘黏行)问题。虽然已做初步修复，但希望参考 Chatlog(Go项目)使用更成熟的TUI框架彻底解决。
+
+### 应用场景
+- 符号链接管理工具的交互式终端界面
+- 三层级分类浏览(Primary → Secondary → Project)
+- 查看详情、编辑目标、搜索过滤
+- 多终端尺寸适配
+
+### 技术选型
+- 目标框架: Textual (Python对应Go tview的最佳选择)
+- 由Rich作者开发，无缝集成现有Rich库
+- 现代化API(async/await)，活跃维护
+
+### 核心要求
+- 彻底解决渲染残留问题
+- 保持所有44个现有测试通过
+- 功能完全对标现有TUI
+- 支持渐进式迁移(并行实现→完全替换)
+
+### 实施策略
+1. 并行实现: 保留tui.py，新增tui_textual.py
+2. CLI提供 --ui-engine=simple|textual 选项
+3. 默认使用simple，测试通过后切换到textual
+4. 验收通过后删除simple-term-menu依赖
+
+### 验收标准
+- [ ] Textual实现功能完整对标现有TUI
+- [ ] 无终端渲染残留/粘黏行问题
+- [ ] 所有44个测试通过
+- [ ] 性能无明显下降
+- [ ] 代码质量符合项目标准
+
+### 优先级
+HIGH - 技术债务修复，提升用户体验质量
+
+---
+
+## Previous Requirement (2025-10-14 14:00) - Hierarchical 3-Level Classification System
 
 ### User Need
 Implement a hierarchical 3-level classification system for symlink organization to better manage large numbers of symlinks across different categories.
