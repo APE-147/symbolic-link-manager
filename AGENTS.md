@@ -25,7 +25,7 @@
 ### 当前状态
 - **Branch**: feat/symlink-manager-mvp
 - **Cycle**: 3 (所有周期已完成)
-- **测试**: 44/44 通过 ✅
+- **测试**: 46/46 通过 ✅
 - **Progress**: 100% (Cycle 1-3 complete)
 - **Env**: macOS Darwin 24.6.0, Python 3.12.9
 
@@ -58,7 +58,7 @@
 - **Owner**: codex-feature agent
 - **Progress**: 100% (Cycle 3 complete; Cycle 4 in planning phase)
 - **Branch**: feat/symlink-manager-mvp
-- **Status**: All core features complete, 44/44 tests passing
+- **Status**: All core features complete, 46/46 tests passing
 - **FF Status**: N/A (enhancement to existing feature)
 - **Kill Switch**: N/A
 
@@ -121,7 +121,7 @@ pytest tests/test_hierarchical_classifier.py -v
 ```
 
 ### 测试覆盖率
-- **总测试数**: 44 个
+- **总测试数**: 46 个
 - **通过率**: 100% ✅
 - **覆盖模块**: scanner, classifier, validator, ui/tui, hierarchical classification
 
@@ -335,11 +335,41 @@ graph TD
 
 ## Run Log (时间倒序)
 
+### 2025-10-14 - NEW: CLI JSON Export Subcommand ✅
+
+**Achievement:**
+- ✅ Added `lk export` subcommand to output scan/classification as JSON
+- ✅ Supports hierarchical (default) and flat modes
+- ✅ Honors filter config and CLI include/exclude flags
+- ✅ Pretty or minified output; write to file or stdout
+- ✅ 2 new tests; total now 46/46 passing
+
+**Usage Examples:**
+```
+# Hierarchical (default) to stdout
+lk export --target /path/to/scan --config ~/.config/lk/projects.md --pretty
+
+# Flat buckets, minified, saved to file
+lk export --target /path/to/scan --flat --minify --output links.json
+```
+
+**Implementation Details:**
+- Added `export` subcommand in `src/symlink_manager/cli.py`
+- Reused scanner + classifier modules; hierarchical path auto-detection
+- JSON encoding converts `path`/`target` to strings
+- Tests: `tests/test_cli_export.py` (hierarchical + flat)
+
+**Impact:**
+- HIGH: Enables non-interactive workflows and downstream tooling
+- LOW risk: Read-only code paths; no TUI changes
+
+**Next:** Consider NDJSON/CSV export or `--filter` inline patterns for quick scripting
+
 ### 2025-10-14 - CYCLE 3 COMPLETE: Hierarchical 3-Level Classification ✅
 
 **Achievement:**
 - ✅ Implemented hierarchical 3-level classification system (Primary → Secondary → Project)
-- ✅ All 44/44 tests passing (31 original + 13 new hierarchical tests)
+- ✅ All 46/46 tests passing (31 original + 13 new hierarchical tests + 2 export CLI tests)
 - ✅ Backward compatible with flat config format
 - ✅ Auto-detection of secondary and project levels from path structure
 - ✅ TUI displays 3-level hierarchy with proper indentation
