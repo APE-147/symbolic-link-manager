@@ -39,6 +39,9 @@ dev = [
   "pytest-cov>=4.0",
   "ruff>=0.6",
 ]
+textual = [
+  "textual>=0.60,<1.0",
+]
 
 [project.scripts]
 lk = "symlink_manager.cli:main"
