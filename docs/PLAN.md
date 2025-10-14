@@ -1,415 +1,334 @@
 # PLAN
 
-> 每次运行在文件底部追加一个 Cycle（6–8 个问题 + 选项效果 + 进度）。
+> 每次运行在文件底部追加一个 Cycle（6-8 个问题 + 选项效果 + 进度）。
 
-## Cycle 1 - 2025-10-13 00:00  (@source: REQUIRES.md + PLAN prompt.md)
-Progress: 0.00%  (from TASKS.md)
+## Cycle 1 - 2025-10-13 (@source: REQUIRES.md + analysis)
+Progress: 0.00% (from TASKS.md)
 
-**[S0｜完成度 5%]**
+### Q1. How should we handle screen clearing to prevent flickering?
+- A) Use alternate screen buffer (ANSI escape sequences)
+  - Effect: 范围=全局/风险=低/质量=高/复杂度=低/工期=1h/成本=低/可维护性=高/可观测性=高
+  - Pros: Standard practice (vim, less, htop), clean separation from terminal scrollback
+  - Cons: Requires manual ANSI sequence management
+- B) Disable clear_screen in TerminalMenu and minimize console.clear() calls
+  - Effect: 范围=局部/风险=低/质量=中/复杂度=极低/工期=30min/成本=极低/可维护性=中/可观测性=中
+  - Pros: Simplest fix, minimal code changes
+  - Cons: May not fully solve scrollback pollution
+- C) Combine A + B (alternate screen + optimized clearing)
+  - Effect: 范围=全局/风险=低/质量=最高/复杂度=中/工期=1.5h/成本=低/可维护性=高/可观测性=高
+  - Pros: Best of both worlds, most robust solution
+  - Cons: Slightly more complex
 
-Q1. 目标用户与首要场景？
-- A) 个人开发者管理本地项目符号链接 ★
-   - 效果：范围聚焦/风险低/质量易控/复杂度中/工期短/成本低/可观测性强（加权：UX 4.5｜代码整洁 4.2｜部署便捷 4.8｜安全 4.0｜成本 4.5 → 总分 4.46）
-- B) 团队协作环境下的符号链接集中管理
-   - 效果：范围扩大/风险中/质量要求高/复杂度高/工期长/成本中/可观测性需增强（加权：UX 3.8｜代码整洁 3.5｜部署便捷 3.2｜安全 4.5｜成本 3.0 → 总分 3.66）
-- C) 跨平台企业级链接维护系统
-   - 效果：范围最大/风险高/质量严苛/复杂度很高/工期最长/成本高/可观测性复杂（加权：UX 3.2｜代码整洁 3.0｜部署便捷 2.5｜安全 4.8｜成本 2.0 → 总分 3.05）
+### Q2. Should we use Rich Console's screen() context manager or manual ANSI codes?
+- A) Use Rich Console.screen() context manager
+  - Effect: 范围=全局/风险=低/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: Leverages existing Rich dependency, cleaner API, automatic cleanup
+  - Cons: Relies on Rich's implementation
+- B) Manual ANSI escape sequences (_enter_alternate_screen/_exit_alternate_screen)
+  - Effect: 范围=全局/风险=中/质量=高/复杂度=中/工期=1h/成本=低/可维护性=中/可观测性=中
+  - Pros: Direct control, no dependency on Rich behavior
+  - Cons: More error-prone, manual cleanup required
 
-Q2. 交互模式优先级？
-- A) 纯命令行交互式 TUI（Terminal UI）★
-   - 效果：范围适中/风险低/质量易验证/复杂度低/工期短/成本低/可维护性强（加权：UX 4.6｜代码整洁 4.5｜部署便捷 4.9｜安全 4.2｜成本 4.8 → 总分 4.62）
-- B) Web 界面 + API 后端
-   - 效果：范围扩大/风险中/质量需全栈测试/复杂度高/工期长/成本中/可维护性中（加权：UX 4.2｜代码整洁 3.5｜部署便捷 3.0｜安全 3.5｜成本 3.0 → 总分 3.66）
-- C) 混合模式（CLI + Web 双界面）
-   - 效果：范围最大/风险高/质量复杂/复杂度很高/工期最长/成本高/可维护性中（加权：UX 4.0｜代码整洁 3.0｜部署便捷 2.5｜安全 3.0｜成本 2.5 → 总分 3.30）
+### Q3. How to handle cursor visibility during navigation?
+- A) Hide cursor during menu navigation, restore on exit
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=15min/成本=极低/可维护性=高/可观测性=高
+  - Pros: Reduces visual noise, cleaner appearance
+  - Cons: Must ensure cursor is always restored
+- B) Leave cursor management to simple-term-menu
+  - Effect: 范围=无/风险=无/质量=中/复杂度=无/工期=0/成本=无/可维护性=高/可观测性=中
+  - Pros: No code needed
+  - Cons: May contribute to flicker
 
-Q3. 符号链接扫描范围策略？
-- A) 递归扫描指定根目录所有子目录 ★
-   - 效果：范围全面/风险低/质量需性能优化/复杂度中/工期中/成本低/可观测性好（加权：UX 4.4｜代码整洁 4.0｜部署便捷 4.5｜安全 4.0｜成本 4.5 → 总分 4.32）
-- B) 仅扫描一级子目录（浅层扫描）
-   - 效果：范围受限/风险低/质量简单/复杂度低/工期短/成本低/可观测性简单（加权：UX 3.5｜代码整洁 4.2｜部署便捷 4.8｜安全 4.2｜成本 4.8 → 总分 4.03）
-- C) 用户可配置扫描深度与排除规则
-   - 效果：范围灵活/风险中/质量需配置验证/复杂度高/工期长/成本中/可观测性需增强（加权：UX 4.8｜代码整洁 3.8｜部署便捷 3.5｜安全 3.8｜成本 3.5 → 总分 4.11）
+### Q4. Should we add terminal size detection and adaptive behavior?
+- A) Detect terminal size, disable preview on small terminals (<100 cols)
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: Better UX on small terminals, prevents overflow issues
+  - Cons: Additional complexity
+- B) Keep current behavior (fixed preview_size=0.3)
+  - Effect: 范围=无/风险=无/质量=中/复杂度=无/工期=0/成本=无/可维护性=高/可观测性=中
+  - Pros: Simpler
+  - Cons: May be cramped on small terminals
 
-Q4. 分类配置文件格式与存储？
-- A) Markdown 格式，存储在项目根目录 ★
-   - 效果：范围简单/风险低/质量易验证/复杂度低/工期短/成本低/可维护性强（加权：UX 4.5｜代码整洁 4.6｜部署便捷 4.8｜安全 4.5｜成本 4.8 → 总分 4.62）
-- B) YAML/JSON 格式，支持 schema 验证
-   - 效果：范围适中/风险低/质量可机器验证/复杂度中/工期中/成本低/可维护性强（加权：UX 4.0｜代码整洁 4.5｜部署便捷 4.5｜安全 4.2｜成本 4.5 → 总分 4.32）
-- C) 数据库存储（SQLite）
-   - 效果：范围复杂/风险中/质量需迁移支持/复杂度高/工期长/成本中/可维护性中（加权：UX 3.5｜代码整洁 3.8｜部署便捷 3.0｜安全 3.8｜成本 3.2 → 总分 3.54）
+### Q5. How to handle transitions between menu/detail/edit views?
+- A) Clear screen cleanly before each view switch
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: Clean visual transitions
+  - Cons: Requires consistent clearing pattern
+- B) Use console.clear() only once at start, rely on overwrites
+  - Effect: 范围=局部/风险=中/质量=中/复杂度=低/工期=15min/成本=低/可维护性=中/可观测性=中
+  - Pros: Minimal clearing
+  - Cons: May leave artifacts
 
-Q5. 目标路径迁移的安全策略？
-- A) 迁移前强制创建备份 + 原子操作 + 回滚机制 ★
-   - 效果：范围全面/风险最低/质量高/复杂度高/工期长/成本中/可观测性强（加权：UX 4.2｜代码整洁 4.5｜部署便捷 4.0｜安全 5.0｜成本 4.0 → 总分 4.35）
-- B) 用户确认后直接迁移 + 日志记录
-   - 效果：范围简单/风险高/质量中/复杂度低/工期短/成本低/可观测性中（加权：UX 4.0｜代码整洁 4.0｜部署便捷 4.5｜安全 2.5｜成本 4.5 → 总分 3.80）
-- C) 先复制验证再删除源文件
-   - 效果：范围中等/风险中/质量较高/复杂度中/工期中/成本中/可观测性好（加权：UX 4.1｜代码整洁 4.2｜部署便捷 4.2｜安全 4.0｜成本 3.8 → 总分 4.12）
+### Q6. Should we limit menu height to prevent scrolling?
+- A) Add menu_entries_max_height parameter to TerminalMenu
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=15min/成本=极低/可维护性=高/可观测性=高
+  - Pros: Prevents menu from exceeding screen height
+  - Cons: May require scrolling for long lists
+- B) Let simple-term-menu handle it automatically
+  - Effect: 范围=无/风险=无/质量=中/复杂度=无/工期=0/成本=无/可维护性=高/可观测性=中
+  - Pros: Simpler
+  - Cons: Library may not handle all edge cases
 
-Q6. 全局 CLI 命令安装方式？
-- A) Python 包 + setuptools entry_points ★
-   - 效果：范围标准/风险低/质量依赖生态/复杂度低/工期短/成本低/可维护性强（加权：UX 4.5｜代码整洁 4.8｜部署便捷 4.6｜安全 4.5｜成本 4.8 → 总分 4.64）
-- B) 手动脚本安装（复制到 /usr/local/bin）
-   - 效果：范围简单/风险中/质量需手动维护/复杂度低/工期短/成本低/可维护性弱（加权：UX 3.5｜代码整洁 3.0｜部署便捷 3.5｜安全 3.0｜成本 4.5 → 总分 3.39）
-- C) 容器化部署（Docker）
-   - 效果：范围隔离/风险低/质量高/复杂度高/工期长/成本高/可维护性强但重（加权：UX 3.0｜代码整洁 4.0｜部署便捷 2.5｜安全 4.8｜成本 2.5 → 总分 3.31）
+### Q7. How to ensure clean exit and terminal restoration?
+- A) Use try/finally block to guarantee cleanup
+  - Effect: 范围=全局/风险=低/质量=高/复杂度=低/工期=15min/成本=极低/可维护性=高/可观测性=高
+  - Pros: Ensures terminal always restored, even on errors
+  - Cons: Slightly more verbose
+- B) Rely on context manager cleanup (if using Console.screen())
+  - Effect: 范围=全局/风险=低/质量=高/复杂度=极低/工期=0/成本=无/可维护性=高/可观测性=高
+  - Pros: Pythonic, automatic cleanup
+  - Cons: Requires using context manager
 
-Q7. 错误处理与边界场景策略？
-- A) 预检查 + 干运行模式 + 详细错误提示 ★
-   - 效果：范围全面/风险最低/质量高/复杂度中/工期中/成本中/可观测性强（加权：UX 4.8｜代码整洁 4.5｜部署便捷 4.3｜安全 4.8｜成本 4.0 → 总分 4.58）
-- B) 简单 try-catch + 基础日志
-   - 效果：范围基础/风险中/质量低/复杂度低/工期短/成本低/可观测性弱（加权：UX 3.0｜代码整洁 3.5｜部署便捷 4.5｜安全 2.5｜成本 4.8 → 总分 3.39）
-- C) 渐进式错误处理（MVP 先简单，后续迭代增强）
-   - 效果：范围灵活/风险中/质量渐进/复杂度中/工期分阶段/成本中/可观测性渐进（加权：UX 4.0｜代码整洁 4.0｜部署便捷 4.5｜安全 3.5｜成本 4.2 → 总分 4.04）
+### Q8. Should we add manual testing checklist to docs?
+- A) Create docs/TESTING.md with manual test scenarios
+  - Effect: 范围=文档/风险=无/质量=高/复杂度=低/工期=20min/成本=低/可维护性=高/可观测性=高
+  - Pros: Ensures thorough testing, reproducible validation
+  - Cons: Extra documentation to maintain
+- B) Document testing in commit message only
+  - Effect: 范围=git历史/风险=低/质量=中/复杂度=无/工期=0/成本=无/可维护性=中/可观测性=低
+  - Pros: Simpler
+  - Cons: Less discoverable
 
-Q8. 测试与验证策略？
-- A) 单元测试 + 集成测试 + 模拟文件系统环境 ★
-   - 效果：范围全面/风险低/质量高/复杂度高/工期长/成本中/可维护性强（加权：UX 4.0｜代码整洁 4.8｜部署便捷 4.0｜安全 4.8｜成本 3.8 → 总分 4.32）
-- B) 手动测试 + 关键路径自动化
-   - 效果：范围中等/风险中/质量中/复杂度低/工期短/成本低/可维护性中（加权：UX 3.5｜代码整洁 3.5｜部署便捷 4.5｜安全 3.0｜成本 4.5 → 总分 3.74）
-- C) MVP 无测试，后续补充
-   - 效果：范围最小/风险高/质量不保证/复杂度最低/工期最短/成本最低/可维护性差（加权：UX 2.5｜代码整洁 2.0｜部署便捷 5.0｜安全 1.5｜成本 5.0 → 总分 2.78）
+### 建议与权衡:
+- 建议: Q1→C, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→B, Q8→A
+- 理由:
+  1. 组合方案（alternate screen + 优化clearing）提供最佳体验
+  2. Rich Console.screen() 更简洁且自动清理
+  3. 隐藏光标减少视觉噪音
+  4. 终端尺寸检测提升小屏体验
+  5. 清晰的视图切换提升UX
+  6. 限制菜单高度防止滚动
+  7. Context manager 确保清理
+  8. 测试清单确保质量
 
-建议与权衡：
-- 建议：Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
-- 理由：
-  1. 聚焦个人开发者场景，降低范围与复杂度
-  2. 纯 CLI/TUI 交互，部署便捷且符合目标用户习惯
-  3. 递归扫描确保完整性，配合性能优化
-  4. Markdown 配置简单直观，易于手动编辑
-  5. 强制备份与原子操作确保数据安全（核心风险点）
-  6. 标准 Python 打包方式，生态成熟
-  7. 预检查与干运行提升用户信心
-  8. 完整测试覆盖，确保文件操作正确性
+## Cycle 2 - 2025-10-14 (@source: REQUIRES.md + PLAN prompt)
+Progress: 100.00% (from TASKS.md)
 
----
+### Q1. 如何处理菜单标题以消除重复行？
+- A) 移除 TerminalMenu 的 `title`，用 Rich 在菜单上方自绘单行标题
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: 避免库重复绘制；可控样式；与 alternate buffer 兼容
+  - Cons: 需手动管理回到菜单时的标题重绘
+- B) 保留 `title` 但将 `clear_screen=True`
+  - Effect: 范围=局部/风险=中/质量=中/复杂度=低/工期=15min/成本=低/可维护性=中/可观测性=中
+  - Pros: 由库负责清屏与重绘
+  - Cons: 可能重新引入抖动/闪屏问题（已在 Cycle 1 避免）
+- C) 继续使用 `title`，进入/退出时注入 ANSI 控制序列（光标复位+区域擦除）
+  - Effect: 范围=局部/风险=中/质量=中/复杂度=中/工期=45min/成本=低/可维护性=中/可观测性=中
+  - Pros: 精细控制重绘区域
+  - Cons: 易错、与库输出交互复杂
 
-## Cycle 2 - 2025-10-13 17:05  (@source: REQUIRES.md + immediate UX issue)
-Progress: 50.00%  (4/8 tasks completed from TASKS.md)
+### Q2. 标题的重绘时机？
+- A) 每次回到主菜单前清屏并重绘标题，再 `menu.show()`
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=20min/成本=低/可维护性=高/可观测性=高
+  - Pros: 干净、可预期；不依赖库的起始行位置
+  - Cons: 视图切换瞬间可能有轻微闪烁
+- B) 仅首次进入时绘制标题，后续完全交给菜单重绘
+  - Effect: 范围=局部/风险=中/质量=中/复杂度=低/工期=10min/成本=低/可维护性=中/可观测性=中
+  - Pros: 最少清屏
+  - Cons: 细节页返回后菜单可能在标题下方错位
+- C) 维护一个 `needs_header_refresh` 标志，仅在从详情/编辑返回时重绘
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=中/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: 减少不必要清屏，避免重复
+  - Cons: 需谨慎管理状态
 
-**Critical UX Issue: TUI Display Optimization**
+### Q3. 标题呈现样式？
+- A) 简单单行文本（轻样式）
+  - Effect: 范围=UI/风险=低/质量=高/复杂度=低/工期=10min/成本=低/可维护性=高/可观测性=高
+  - Pros: 最稳定、最不易造成布局抖动
+  - Cons: 视觉吸引力一般
+- B) Rich Panel（有边框/标题）
+  - Effect: 范围=UI/风险=低/质量=中/复杂度=低/工期=15min/成本=低/可维护性=高/可观测性=高
+  - Pros: 更醒目
+  - Cons: 占用行高，可能压缩可见菜单项
+- C) 顶部状态栏（Rich Text + rule）
+  - Effect: 范围=UI/风险=低/质量=高/复杂度=中/工期=20min/成本=低/可维护性=高/可观测性=高
+  - Pros: 信息密度高
+  - Cons: 代码稍复杂
 
-Q1. Main list display format for symlink paths?
-- A) Show only basename (filename/link name) ★
-   - 效果：范围/清晰度最优/风险极低/质量/用户体验最佳/复杂度极低/工期最短（15分钟）/成本极低/可维护性强（加权：UX 5.0｜代码整洁 4.8｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.90）
-- B) Show relative path from scan root
-   - 效果：范围/信息量中等/风险低/质量好/用户体验中/复杂度低/工期短（30分钟）/成本低/可维护性强（加权：UX 3.5｜代码整洁 4.2｜部署便捷 4.5｜安全 4.5｜成本 4.5 → 总分 4.08）
-- C) Keep full path (current behavior)
-   - 效果：范围/信息完整但混乱/风险无/质量/用户体验差/复杂度无/工期无/成本无/可维护性现状（加权：UX 1.5｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 3.22）
+### Q4. 菜单与详情/编辑的切换策略？
+- A) 从详情/编辑返回主菜单时执行 `console.clear()` + 标题重绘
+  - Effect: 范围=局部/风险=低/质量=高/复杂度=低/工期=15min/成本=低/可维护性=高/可观测性=高
+  - Pros: 最干净的回切体验
+  - Cons: 轻微清屏成本
+- B) 依赖库在原区域重绘（不清屏）
+  - Effect: 范围=局部/风险=中/质量=中/复杂度=低/工期=10min/成本=低/可维护性=中/可观测性=中
+  - Pros: 少一次清屏
+  - Cons: 容易出现叠画/错行
 
-Q2. Detail view information structure?
-- A) Panel with labeled sections (Name/Symlink Location/Target Path/Status) ★
-   - 效果：范围/信息清晰分层/风险极低/质量最佳/用户体验优秀/复杂度低/工期短（20分钟）/成本低/可观测性强（加权：UX 4.9｜代码整洁 4.6｜部署便捷 4.8｜安全 4.5｜成本 4.8 → 总分 4.76）
-- B) Simple text block without clear structure
-   - 效果：范围/信息混杂/风险低/质量中/用户体验差/复杂度最低/工期最短/成本最低/可观测性弱（加权：UX 2.5｜代码整洁 3.5｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 3.58）
-- C) Table format with rows
-   - 效果：范围/信息结构化/风险低/质量好/用户体验好/复杂度中/工期中（25分钟）/成本低/可观测性强（加权：UX 4.2｜代码整洁 4.4｜部署便捷 4.5｜安全 4.5｜成本 4.5 → 总分 4.42）
+### Q5. 预览窗与标题并存的布局策略？
+- A) 保持现有 `preview_size` 自适应（≥100列：0.3；否则：0）
+  - Effect: 范围=布局/风险=低/质量=高/复杂度=低/工期=0/成本=无/可维护性=高/可观测性=高
+  - Pros: 与现有逻辑一致，风险低
+  - Cons: 无
+- B) 宽屏时略微下调 `preview_size`（如 0.25）
+  - Effect: 范围=布局/风险=低/质量=中/复杂度=低/工期=10min/成本=低/可维护性=高/可观测性=中
+  - Pros: 腾出更多行给菜单
+  - Cons: 预览信息略少
 
-Q3. Color coding and visual hierarchy strategy?
-- A) Keep current color scheme (green=valid, red=broken) ★
-   - 效果：范围/一致性/风险无/质量保持/用户体验已验证/复杂度无/工期无/成本无/可访问性好（加权：UX 4.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
-- B) Add more color variations for different states
-   - 效果：范围扩展/视觉丰富/风险低/质量需测试/用户体验可能更好/复杂度中/工期中/成本低/可访问性需注意（加权：UX 4.0｜代码整洁 3.8｜部署便捷 4.0｜安全 4.0｜成本 4.0 → 总分 3.98）
+### Q6. 键盘提示放置位置？
+- A) 继续使用 TerminalMenu `status_bar`
+  - Effect: 范围=UI/风险=低/质量=高/复杂度=低/工期=0/成本=无/可维护性=高/可观测性=高
+  - Pros: 库内置，简单稳定
+  - Cons: 样式可定制性有限
+- B) 自绘底部提示栏（Rich）
+  - Effect: 范围=UI/风险=低/质量=中/复杂度=中/工期=20min/成本=低/可维护性=高/可观测性=高
+  - Pros: 可与标题风格统一
+  - Cons: 需管理与菜单的相对位置
 
-Q4. Path display in detail view terminology?
-- A) Use "Symlink Location" and "Target Path" labels ★
-   - 效果：范围/语义清晰/风险极低/质量/专业术语准确/用户体验最佳/复杂度无/工期极短（5分钟）/成本无/可理解性强（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00）
-- B) Use "Link Path" and "Points To" labels
-   - 效果：范围/语义简化/风险极低/质量/通俗表达/用户体验好/复杂度无/工期极短/成本无/可理解性强（加权：UX 4.5｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
-- C) Use "Source" and "Destination" labels
-   - 效果：范围/语义模糊/风险低/质量/易混淆迁移操作/用户体验中/复杂度无/工期极短/成本无/可理解性弱（加权：UX 3.0｜代码整洁 4.5｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.18）
+### Q7. 兼容性验证范围？
+- A) 先验证 macOS Terminal.app（必测），再扩展 iTerm2/Alacritty（可选）
+  - Effect: 范围=测试/风险=低/质量=高/复杂度=低/工期=20min/成本=低/可维护性=高/可观测性=高
+  - Pros: 先满足主要环境，逐步扩大
+  - Cons: 初期覆盖面较窄
+- B) 一次性覆盖 3 个终端
+  - Effect: 范围=测试/风险=低/质量=高/复杂度=中/工期=45min/成本=低/可维护性=高/可观测性=高
+  - Pros: 一次性心安
+  - Cons: 时间稍长
 
-Q5. Grouping visual separation strategy?
-- A) Keep current approach (text headers with color) ★
-   - 效果：范围/简洁清晰/风险无/质量已验证/用户体验好/复杂度无/工期无/成本无/可维护性强（加权：UX 4.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.82）
-- B) Use Rich panels for each group
-   - 效果：范围/视觉隔离强/风险低/质量好/用户体验更佳/复杂度中/工期中（30分钟）/成本低/可维护性好（加权：UX 4.8｜代码整洁 4.2｜部署便捷 4.5｜安全 5.0｜成本 4.5 → 总分 4.62）
-- C) Use horizontal rules between groups
-   - 效果：范围/视觉分隔轻/风险低/质量好/用户体验中/复杂度低/工期短（15分钟）/成本低/可维护性强（加权：UX 4.2｜代码整洁 4.6｜部署便捷 4.8｜安全 5.0｜成本 4.8 → 总分 4.58）
+### 建议与权衡（Cycle 2）
+- 建议: Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A
+- 理由:
+  1. 取消库内标题最直接消除重复问题
+  2. 回到菜单前清屏+重绘标题最稳定
+  3. 单行标题占用最少行高，风险最低
+  4. 维持现有预览自适应逻辑，减少变化面
+  5. 延续库内置 `status_bar` 实现
+  6. 先满足主要终端，再逐步扩展
 
-Q6. Implementation approach - files to modify?
-- A) Modify tui.py display logic only (minimal change) ★
-   - 效果：范围/最小化/风险最低/质量/隔离变更/用户体验修复/复杂度最低/工期最短/成本最低/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.96）
-- B) Refactor SymlinkInfo dataclass to include display fields
-   - 效果：范围/较大/风险中/质量/需修改多处/用户体验修复/复杂度中/工期长/成本中/可维护性需测试（加权：UX 4.5｜代码整洁 3.5｜部署便捷 3.5｜安全 4.0｜成本 3.5 → 总分 3.98）
+## Cycle 3 - 2025-10-14 (@source: REQUIRES.md + PLAN prompt.md)
+Progress: 0.00% (from TASKS.md - new feature)
 
-Q7. Testing strategy for this fix?
-- A) Manual testing with `lk` command + visual verification ★
-   - 效果：范围/适度/风险低/质量/快速反馈/用户体验验证/复杂度低/工期短/成本低/可维护性好（加权：UX 4.8｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.68）
-- B) Add automated TUI snapshot tests
-   - 效果：范围/全面/风险最低/质量最高/用户体验保障/复杂度高/工期长/成本中/可维护性最优（加权：UX 4.5｜代码整洁 4.8｜部署便捷 3.5｜安全 4.8｜成本 3.5 → 总分 4.38）
-- C) No formal testing (quick fix)
-   - 效果：范围/最小/风险高/质量/无保障/用户体验不确定/复杂度无/工期最短/成本最低/可维护性差（加权：UX 3.0｜代码整洁 3.0｜部署便捷 5.0｜安全 2.5｜成本 5.0 → 总分 3.32）
+### Q1. 配置文件解析方案：如何实现3层级配置结构？
+- A) 扩展现有parser，增加 `###` 标题支持，构建嵌套OrderedDict ★
+  - Effect: 范围=classifier.py/风险=低/质量=高/复杂度=中/工期=1-2h/成本=低/可维护性=高/可观测性=高
+  - Pros: 保留现有parse逻辑；渐进式扩展；易于测试
+  - Cons: 需重构数据结构
+- B) 全新parser实现，使用dataclass建模3层级（Primary/Secondary/Project）
+  - Effect: 范围=classifier.py/风险=中/质量=最高/复杂度=高/工期=2-3h/成本=中/可维护性=最高/可观测性=最高
+  - Pros: 类型安全；清晰语义；IDE友好
+  - Cons: 工期稍长；需重写parse_markdown_config_text
+- C) 保持现有flat结构，用 `Primary/Secondary` 作key
+  - Effect: 范围=classifier.py局部/风险=极低/质量=中/复杂度=低/工期=30min/成本=极低/可维护性=中/可观测性=中
+  - Pros: 最小改动；无需数据模型重构
+  - Cons: 不符合用户层次化预期；TUI展示受限
 
-Q8. Deployment and rollback plan?
-- A) Git commit with clear message + tag for easy rollback ★
-   - 效果：范围/标准流程/风险极低/质量/可追溯/用户体验/复杂度无/工期极短（2分钟）/成本无/可回滚性完美（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00）
-- B) Direct commit without special handling
-   - 效果：范围/简化/风险低/质量/基本可追溯/用户体验/复杂度无/工期最短/成本无/可回滚性好（加权：UX 4.5｜代码整洁 4.8｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.82）
+### Q2. 数据模型设计：SymlinkInfo如何表示3层分类？
+- A) 新增3个字段：primary_category / secondary_category / project_name ★
+  - Effect: 范围=scanner.py dataclass/风险=低/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: 语义明确；向后兼容（保留project字段）；TUI易于遍历
+  - Cons: dataclass字段变多
+- B) 单字段 `hierarchy: Tuple[str, str, str]`
+  - Effect: 范围=scanner.py dataclass/风险=低/质量=中/复杂度=低/工期=20min/成本=低/可维护性=中/可观测性=中
+  - Pros: 紧凑；类型统一
+  - Cons: 字段语义不直观；需索引访问
+- C) 保留现有 `project` 字段，用 `/` 分隔层级（如 `Desktop/Projects/ProjectAlpha`）
+  - Effect: 范围=无需dataclass改动/风险=极低/质量=低/复杂度=低/工期=15min/成本=极低/可维护性=低/可观测性=低
+  - Pros: 零dataclass改动
+  - Cons: 字符串解析易错；TUI需split逻辑
 
-建议与权衡：
-- 建议：Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
-- 理由：
-  1. 显示 basename 完美解决路径混乱问题，用户可快速识别链接名称
-  2. Panel 结构化显示确保详情信息清晰可读
-  3. 保持现有配色方案，避免引入不必要的视觉复杂度
-  4. "Symlink Location" / "Target Path" 术语专业且语义明确
-  5. 保持现有分组方式，已验证有效
-  6. 最小化修改范围，仅改 tui.py 显示逻辑，降低风险
-  7. 手动测试快速验证，适合此类 UI 修复
-  8. Git 标准流程确保可追溯和快速回滚
+### Q3. 向后兼容策略：如何处理现有flat配置？
+- A) Parser自动检测：无 `###` 则fallback到flat模式，填充 `primary="unclassified"` ★
+  - Effect: 范围=classifier.py parser/风险=低/质量=高/复杂度=中/工期=1h/成本=低/可维护性=高/可观测性=高
+  - Pros: 用户无感知；平滑升级；现有配置继续工作
+  - Cons: parser逻辑需if分支
+- B) 强制迁移：要求用户将flat配置改为 `## Unclassified / ### Default` 格式
+  - Effect: 范围=全局/风险=高/质量=中/复杂度=低/工期=30min/成本=高（用户迁移）/可维护性=中/可观测性=中
+  - Pros: parser简单；无兼容负担
+  - Cons: 破坏性变更；用户体验差
+- C) 双parser：flat_parser + hierarchical_parser，运行时选择
+  - Effect: 范围=classifier.py/风险=低/质量=高/复杂度=高/工期=2h/成本=中/可维护性=中/可观测性=高
+  - Pros: 清晰分离；易于测试
+  - Cons: 代码重复；维护两套逻辑
 
----
+### Q4. TUI展示方式：3层级如何可视化？
+- A) 缩进显示：`[PRIMARY]` → `  [Secondary]` → `    ✓ project` ★
+  - Effect: 范围=tui.py menu building/风险=低/质量=高/复杂度=中/工期=1-1.5h/成本=低/可维护性=高/可观测性=高
+  - Pros: 直观层级；与原需求示例一致；ASCII友好
+  - Cons: 宽屏占用稍多
+- B) 树形字符：`└─ / ├─` 风格
+  - Effect: 范围=tui.py menu building/风险=低/质量=中/复杂度=高/工期=2h/成本=中/可维护性=中/可观测性=高
+  - Pros: 视觉美观
+  - Cons: 字符集兼容性问题；复杂度高
+- C) 平铺 + 颜色标记：`[Desktop:Projects] ProjectAlpha`
+  - Effect: 范围=tui.py/风险=低/质量=中/复杂度=低/工期=45min/成本=低/可维护性=高/可观测性=中
+  - Pros: 简单实现
+  - Cons: 层级不直观
 
-## Cycle 3 - 2025-10-13 20:30  (@source: REQUIRES.md + UX Enhancement Request)
-Progress: 62.50%  (5/8 tasks completed from TASKS.md)
+### Q5. 分类逻辑实现：classify_symlinks如何处理3层匹配？
+- A) 三重嵌套循环：primary → secondary → pattern，first-match原则 ★
+  - Effect: 范围=classifier.py classify函数/风险=低/质量=高/复杂度=中/工期=1h/成本=低/可维护性=高/可观测性=高
+  - Pros: 逻辑清晰；与现有算法一致（顺序匹配）
+  - Cons: 性能O(n*m*k)，但实际影响小
+- B) 预构建pattern→(primary,secondary)映射表
+  - Effect: 范围=classifier.py/风险=低/质量=高/复杂度=高/工期=1.5h/成本=中/可维护性=中/可观测性=高
+  - Pros: 性能优化（O(n*p)）
+  - Cons: 需额外数据结构；顺序语义丢失
+- C) 保持flat classify，后处理split project字段
+  - Effect: 范围=classifier.py + tui.py/风险=中/质量=低/复杂度=中/工期=1h/成本=低/可维护性=低/可观测性=低
+  - Pros: 分类逻辑不变
+  - Cons: 耦合split逻辑；不符合设计
 
-**Critical UX Enhancement: TUI Scrolling & Adaptive Width**
+### Q6. 测试策略：如何覆盖3层分类逻辑？
+- A) 新增tests/test_hierarchical_classifier.py，覆盖parser + classify + TUI menu building ★
+  - Effect: 范围=tests/风险=无/质量=最高/复杂度=中/工期=1-1.5h/成本=低/可维护性=高/可观测性=最高
+  - Pros: 独立测试文件；清晰组织；易于CI
+  - Cons: 需编写mock config与symlinks
+- B) 扩展现有test_classifier.py
+  - Effect: 范围=tests/风险=低/质量=高/复杂度=低/工期=45min/成本=低/可维护性=中/可观测性=高
+  - Pros: 保持测试集中
+  - Cons: 单文件变大；flat/hierarchical混合
+- C) 仅手工测试 + 示例配置验证
+  - Effect: 范围=手工/风险=高/质量=低/复杂度=无/工期=30min/成本=极低/可维护性=低/可观测性=极低
+  - Pros: 快速验证
+  - Cons: 无回归保护；不符合CI要求
 
-Q1. Viewport scrolling strategy for large lists?
-- A) Viewport-based rendering with centered cursor ★
-   - 效果：范围/性能最优/风险低/质量/用户体验最佳（支持1000+项）/复杂度中/工期短（1h）/成本低/可观测性强（加权：UX 5.0｜代码整洁 4.5｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.86）
-- B) Page-based scrolling (PgUp/PgDn only)
-   - 效果：范围/简单但跳跃/风险低/质量中/用户体验不够流畅/复杂度低/工期短/成本低/可观测性中（加权：UX 3.5｜代码整洁 4.6｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.26）
-- C) Load all items (current behavior - broken for large lists)
-   - 效果：范围/无法使用/风险高/质量/不可用/用户体验最差/复杂度无/工期无/成本无/可观测性无（加权：UX 0.5｜代码整洁 4.0｜部署便捷 5.0｜安全 4.0｜成本 5.0 → 总分 3.08）
+### Q7. 示例配置文件：放置位置与内容？
+- A) ~/.config/lk/projects.md，包含Desktop/Service/System 3个primary示例 ★
+  - Effect: 范围=文档+示例/风险=无/质量=高/复杂度=低/工期=30min/成本=低/可维护性=高/可观测性=高
+  - Pros: 用户标准路径；与需求示例对齐；易于发现
+  - Cons: 需README说明
+- B) docs/example_hierarchical_config.md
+  - Effect: 范围=文档/风险=无/质量=中/复杂度=低/工期=20min/成本=低/可维护性=高/可观测性=中
+  - Pros: 不污染用户目录
+  - Cons: 用户需手动复制
+- C) 仅README中嵌入代码块
+  - Effect: 范围=文档/风险=无/质量=低/复杂度=极低/工期=10min/成本=极低/可维护性=中/可观测性=低
+  - Pros: 最简单
+  - Cons: 用户体验差
 
-Q2. Scroll indicator design?
-- A) "↑ N more above" / "↓ N more below" with dim cyan style ★
-   - 效果：范围/清晰直观/风险极低/质量/视觉不侵入/用户体验优秀/复杂度低/工期短（15min）/成本低/可访问性强（加权：UX 4.9｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.94）
-- B) Progress bar style indicator (█░░░░ 20%)
-   - 效果：范围/视觉重/风险低/质量好/用户体验较好/复杂度中/工期中（30min）/成本低/可访问性中（加权：UX 4.0｜代码整洁 4.2｜部署便捷 4.5｜安全 5.0｜成本 4.5 → 总分 4.36）
-- C) No indicators (user guesses if more items exist)
-   - 效果：范围/极简但混乱/风险中/质量差/用户体验差/复杂度最低/工期最短/成本最低/可观测性无（加权：UX 1.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.58）
+### Q8. 工期与风险评估：整体实施计划？
+- A) 分3个micro-PR：1)data model+parser, 2)classifier logic, 3)TUI display ★
+  - Effect: 范围=全局/风险=最低/质量=最高/复杂度=中/工期=5-6h total/成本=中/可维护性=最高/可观测性=最高
+  - Pros: 渐进验证；每步可回滚；清晰commit历史
+  - Cons: 需规划子任务顺序
+- B) 单次完整实现（1个PR）
+  - Effect: 范围=全局/风险=中/质量=高/复杂度=高/工期=4-5h/成本=中/可维护性=高/可观测性=高
+  - Pros: 原子性；测试一次性通过
+  - Cons: 出错回滚大；review负担重
+- C) 先MVP（仅parser+基础TUI），后续迭代完善
+  - Effect: 范围=渐进/风险=低/质量=中/复杂度=低/工期=2-3h MVP/成本=低/可维护性=中/可观测性=中
+  - Pros: 快速交付可用版本
+  - Cons: 需二次迭代；用户预期管理
 
-Q3. Adaptive column width calculation strategy?
-- A) Name 30%, Status fixed 10 chars, Target remaining ★
-   - 效果：范围/平衡合理/风险低/质量/适配80-200列终端/用户体验最佳/复杂度中/工期中（30min）/成本低/可维护性强（加权：UX 4.8｜代码整洁 4.6｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.76）
-- B) Fixed column widths (current - breaks on narrow terminals)
-   - 效果：范围/不适配/风险高/质量差/用户体验/窄终端不可用/复杂度无/工期无/成本无/可维护性现状（加权：UX 2.0｜代码整洁 4.5｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 3.78）
-- C) Content-based dynamic width (measure actual text)
-   - 效果：范围/精确但重/风险中/质量最高/用户体验优秀/复杂度高/工期长（2h）/成本中/可维护性复杂（加权：UX 4.9｜代码整洁 3.8｜部署便捷 4.0｜安全 4.8｜成本 3.8 → 总分 4.38）
+### 建议与权衡（Cycle 3）
+- 建议: Q1→B（高质量dataclass），Q2→A（3字段），Q3→A（auto-detect），Q4→A（缩进），Q5→A（三重循环），Q6→A（独立测试文件），Q7→A（~/.config示例），Q8→B（单PR原子实现）
+- 理由:
+  1. dataclass建模提供类型安全与最佳可维护性，工期可控（2-3h）
+  2. 3字段设计语义清晰，TUI遍历友好
+  3. 自动检测flat兼容，用户体验平滑
+  4. 缩进显示符合需求示例，实现简单
+  5. 三重循环逻辑直观，性能足够
+  6. 独立测试文件保障质量，易于CI
+  7. ~/.config示例符合用户习惯
+  8. 单PR原子实现保证测试完整性（权衡：若工期紧张可改Q8→A分步）
 
-Q4. Text truncation strategy for long names/paths?
-- A) Truncate with "…" suffix when exceeding column width ★
-   - 效果：范围/标准做法/风险极低/质量高/用户体验好（hover不可用，需Enter查看）/复杂度低/工期短（15min）/成本低/可访问性强（加权：UX 4.6｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.88）
-- B) Word wrap with overflow
-   - 效果：范围/多行显示/风险低/质量好/用户体验/可能打乱行对齐/复杂度中/工期中/成本低/可访问性强（加权：UX 3.8｜代码整洁 4.0｜部署便捷 4.5｜安全 5.0｜成本 4.8 → 总分 4.26）
-- C) Horizontal scrolling (left/right arrows)
-   - 效果：范围/复杂交互/风险中/质量好/用户体验/需额外按键/复杂度高/工期长（1.5h）/成本中/可访问性中（加权：UX 3.5｜代码整洁 3.5｜部署便捷 4.0｜安全 5.0｜成本 3.8 → 总分 3.92）
-
-Q5. Group header preservation during scrolling?
-- A) Include headers by scanning backwards from visible range ★
-   - 效果：范围/上下文保持/风险低/质量高/用户体验最佳（始终知道在哪个项目）/复杂度中/工期中（30min）/成本低/可观测性强（加权：UX 5.0｜代码整洁 4.4｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.84）
-- B) Show headers only when first item of group is visible
-   - 效果：范围/简单但失上下文/风险低/质量中/用户体验/滚动中丢失项目信息/复杂度低/工期短（15min）/成本低/可观测性弱（加权：UX 3.0｜代码整洁 4.8｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.14）
-- C) Sticky header (always show current group at top)
-   - 效果：范围/复杂实现/风险中/质量最高/用户体验最佳/复杂度高/工期长（1.5h）/成本中/可观测性最强（加权：UX 5.0｜代码整洁 3.8｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.52）
-
-Q6. Performance optimization for large lists (1000+ items)?
-- A) Render only visible viewport (O(viewport_size) not O(total)) ★
-   - 效果：范围/关键优化/风险极低/质量高/用户体验/流畅无卡顿/复杂度低/工期短（20min）/成本低/可扩展性完美（加权：UX 5.0｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.96）
-- B) Lazy loading with pagination
-   - 效果：范围/分批加载/风险中/质量好/用户体验/需加载等待/复杂度高/工期长（2h）/成本中/可扩展性好（加权：UX 4.0｜代码整洁 4.0｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.18）
-- C) Render all items (current - fails at ~100+)
-   - 效果：范围/不可扩展/风险高/质量差/用户体验/大列表卡死/复杂度无/工期无/成本无/可扩展性零（加权：UX 0.5｜代码整洁 4.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.18）
-
-Q7. Testing strategy for scrolling functionality?
-- A) Create test script generating 60+ symlinks + manual verification ★
-   - 效果：范围/实际场景测试/风险低/质量高/用户体验验证/复杂度低/工期短（30min）/成本低/可重现性强（加权：UX 4.8｜代码整洁 4.5｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.74）
-- B) Unit tests only (mock terminal size)
-   - 效果：范围/自动化/风险中/质量好/用户体验/无实际验证/复杂度中/工期中（1h）/成本低/可重现性最强（加权：UX 3.5｜代码整洁 4.8｜部署便捷 4.5｜安全 4.8｜成本 4.5 → 总分 4.38）
-- C) Manual testing on real directory
-   - 效果：范围/依赖环境/风险中/质量中/用户体验验证/复杂度最低/工期短（15min）/成本低/可重现性差（加权：UX 4.0｜代码整洁 4.0｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.38）
-
-Q8. Documentation and user guidance?
-- A) Create TUI_SCROLLING.md with implementation details + test guide ★
-   - 效果：范围/完整文档/风险极低/质量最高/用户体验/可理解性强/复杂度低/工期短（30min）/成本低/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 4.8 → 总分 4.92）
-- B) Update CHANGELOG.md only
-   - 效果：范围/简要记录/风险低/质量中/用户体验/基本了解/复杂度最低/工期最短（10min）/成本低/可维护性好（加权：UX 3.5｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.48）
-- C) No documentation (code comments only)
-   - 效果：范围/最小/风险中/质量差/用户体验/不可发现/复杂度无/工期无/成本最低/可维护性弱（加权：UX 2.0｜代码整洁 4.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.68）
-
-建议与权衡：
-- 建议：Q1→A, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
-- 理由：
-  1. Viewport-based rendering 确保性能，支持任意大小列表
-  2. 简洁的文本滚动指示器清晰直观，不占用过多空间
-  3. 比例式列宽适配所有常见终端尺寸（80-200列）
-  4. 标准 "…" 截断符合用户预期，需完整信息时按 Enter 查看详情
-
-## Cycle 1 - 2025-10-13 19:09  (@source: REQUIRES.md + PLAN prompt.md)
-Progress: 0.00%  (from TASKS.md)
-
-**[S0｜完成度 0%]**
-
-Q1 过滤策略基线？（硬编码 vs 可配置）
-选项：A 全部硬编码在代码中｜B 全量可配置（文件/CLI） ★｜C 混合：核心默认硬编码 + 可覆盖
-效果（影响对比）：
-- A 简单但灵活性差；版本变更需发版；易分叉
-  （UX 3.4｜风险 3.2｜质量 3.8｜复杂度 4.8｜工期 4.8｜成本 4.8｜可观测性 3.5 → 总分 4.04）
-- B 灵活统一；支持团队协作与溯源；需做校验
-  （UX 4.7｜风险 4.3｜质量 4.6｜复杂度 3.8｜工期 3.8｜成本 4.2｜可观测性 4.7 → 总分 4.30） ★
-- C 折中；易出现“默认/覆盖”双通道歧义
-  （UX 4.3｜风险 3.8｜质量 4.2｜复杂度 4.2｜工期 4.2｜成本 4.4｜可观测性 4.2 → 总分 4.18）
-
-Q2 默认过滤模式与模式集？（include/exclude）
-选项：A 默认仅 exclude 常见噪声（最安全） ★｜B 默认 include 受限白名单｜C 默认关闭过滤（用户自行启用）
-效果（影响对比）：
-- A 直接降噪，保留可见性；误杀概率低；可覆盖
-  （UX 4.6｜风险 4.5｜质量 4.5｜复杂度 4.5｜工期 4.5｜成本 4.8｜可观测性 4.6 → 总分 4.46） ★
-- B 精准但需要大量维护，易漏查
-  （UX 3.9｜风险 3.8｜质量 4.2｜复杂度 3.8｜工期 3.6｜成本 4.2｜可观测性 4.4 → 总分 4.02）
-- C 最大自由但体验不稳定，噪声多
-  （UX 3.2｜风险 3.5｜质量 3.6｜复杂度 4.9｜工期 4.9｜成本 4.9｜可观测性 3.6 → 总分 4.02）
-
-Q3 配置文件格式？
-选项：A YAML（含 schema 校验） ★｜B Markdown 列表（与分类同风格）｜C TOML/JSON（标准但冗长）
-效果（影响对比）：
-- A 结构清晰、天然表达 include/exclude/优先级；易校验
-  （UX 4.6｜风险 4.5｜质量 4.8｜复杂度 4.2｜工期 4.2｜成本 4.6｜可观测性 4.8 → 总分 4.53） ★
-- B 学习成本最低，但缺乏严格结构与校验
-  （UX 4.4｜风险 3.8｜质量 4.0｜复杂度 4.6｜工期 4.6｜成本 4.8｜可观测性 4.0 → 总分 4.31）
-- C 通用标准，表达性强但可读性一般
-  （UX 4.0｜风险 4.3｜质量 4.6｜复杂度 4.0｜工期 4.0｜成本 4.6｜可观测性 4.6 → 总分 4.29）
-
-Q4 CLI 选项范围？
-选项：A 仅 `--filter-config` 指向文件｜B `--include`/`--exclude` 可多次 + `--filter-config` ★｜C 追加 `--filter-mode`、`--dry-run-filter` 等高级项
-效果（影响对比）：
-- A 极简但可操作性弱，需频繁改文件
-  （UX 3.6｜风险 4.2｜质量 4.4｜复杂度 4.8｜工期 4.8｜成本 4.9｜可观测性 4.2 → 总分 4.27）
-- B 常用场景一次搞定；文件与命令互补
-  （UX 4.7｜风险 4.4｜质量 4.7｜复杂度 4.2｜工期 4.2｜成本 4.6｜可观测性 4.7 → 总分 4.50） ★
-- C 灵活但学习曲线陡；需要更多帮助文档
-  （UX 4.2｜风险 4.2｜质量 4.6｜复杂度 3.6｜工期 3.8｜成本 4.5｜可观测性 4.8 → 总分 4.25）
-
-Q5 性能与匹配实现？
-选项：A 预编译 glob/regex + 目录级短路 ★｜B 逐项匹配（简单实现）｜C 建索引与缓存（复杂体系）
-效果（影响对比）：
-- A 快速稳定；大目录 O(n) 但常数小；内存低
-  （UX 4.8｜风险 4.6｜质量 4.8｜复杂度 4.2｜工期 4.2｜成本 4.7｜可观测性 4.5 → 总分 4.54） ★
-- B 最易实现，但在 10w+ 文件会抖动
-  （UX 4.0｜风险 3.8｜质量 4.0｜复杂度 4.8｜工期 4.8｜成本 4.9｜可观测性 4.0 → 总分 4.27）
-- C 最高性能但过度设计；维护成本高
-  （UX 4.4｜风险 4.0｜质量 4.6｜复杂度 3.2｜工期 3.2｜成本 3.6｜可观测性 4.6 → 总分 4.07）
-
-Q6 测试策略？
-选项：A 单测 + 参数化目录样例 + 性能基准 ★｜B 仅端到端集成测试｜C 以属性测试为主（Hypothesis）
-效果（影响对比）：
-- A 可覆盖边界与性能回归；最均衡
-  （UX 4.6｜风险 4.7｜质量 4.8｜复杂度 4.3｜工期 4.2｜成本 4.4｜可观测性 4.8 → 总分 4.54） ★
-- B 简单但定位慢、粒度粗
-  （UX 4.2｜风险 4.0｜质量 4.2｜复杂度 4.7｜工期 4.7｜成本 4.8｜可观测性 4.2 → 总分 4.33）
-- C 找边界强，但维护成本较高
-  （UX 4.4｜风险 4.4｜质量 4.7｜复杂度 3.8｜工期 3.7｜成本 4.2｜可观测性 4.6 → 总分 4.25）
-
-Q7 文档策略？
-选项：A 新增 FILTERING.md + README/--help 示例 ★｜B 仅 CHANGELOG 说明｜C 代码注释为主
-效果（影响对比）：
-- A 可学习性强，示例直达 CLI/配置；便于回溯
-  （UX 4.8｜风险 4.6｜质量 4.8｜复杂度 4.6｜工期 4.4｜成本 4.8｜可观测性 4.9 → 总分 4.70） ★
-- B 最省事但不足以指导使用
-  （UX 4.0｜风险 4.3｜质量 4.2｜复杂度 4.9｜工期 4.9｜成本 5.0｜可观测性 4.0 → 总分 4.46）
-- C 成本最低但不可搜索/复用
-  （UX 3.2｜风险 3.8｜质量 3.6｜复杂度 5.0｜工期 5.0｜成本 5.0｜可观测性 3.5 → 总分 4.16）
-
-Q8 上线与回滚计划？
-选项：A 默认启用 exclude 基础集，提供 `--no-filter` 快速关闭 ★｜B 默认关闭，用户手动开启｜C 分支灰度（仅特定目录启用）
-效果（影响对比）：
-- A 开箱稳定；出现问题可单次关闭；便于观测
-  （UX 4.7｜风险 4.6｜质量 4.7｜复杂度 4.6｜工期 4.6｜成本 4.8｜可观测性 4.8 → 总分 4.69） ★
-- B 最安全但体验割裂，用户负担大
-  （UX 3.8｜风险 4.8｜质量 4.6｜复杂度 5.0｜工期 5.0｜成本 5.0｜可观测性 4.4 → 总分 4.53）
-- C 可控性强但实现与认知复杂
-  （UX 4.2｜风险 4.5｜质量 4.6｜复杂度 3.8｜工期 3.8｜成本 4.4｜可观测性 4.8 → 总分 4.30）
-  5. 后向扫描包含 header 确保用户始终知道当前项目上下文
-  6. 只渲染可见项实现 O(viewport) 性能，1000+项依然流畅
-  7. 测试脚本生成真实场景，可重复验证，快速反馈
-  8. 完整文档确保用户理解功能，开发者理解实现，便于维护
-  7. 测试脚本生成真实场景，可重复验证，快速反馈
-  8. 完整文档确保用户理解功能，开发者理解实现，便于维护
-
----
-
-## Cycle 4 - 2025-10-13 20:40  (@source: REQUIRES.md + code quality improvement request)
-Progress: 0.00%  (0/7 tasks for TUI refactoring)
-
-**Code Quality Improvement: Refactor TUI to use simple-term-menu library**
-
-Q1. TUI library choice - which library for menu navigation?
-- A) Keep custom termios/tty implementation (current)
-   - 效果：范围/无依赖但复杂/风险中（维护负担）/质量/手动实现/用户体验有限/复杂度高（~165行自定义代码）/工期/维护成本高/可维护性差/跨平台受限（加权：UX 3.5｜代码整洁 2.8｜部署便捷 4.8｜安全 4.0｜成本 3.0 → 总分 3.46）
-- B) Use simple-term-menu library (drop-in replacement) ★
-   - 效果：范围/减少~200行代码/风险低（成熟库）/质量/经过良好测试/用户体验增强（内置搜索+预览）/复杂度低（库管理）/工期短（1-2h）/成本低（小依赖）/可维护性最优/跨平台更好（加权：UX 4.8｜代码整洁 4.9｜部署便捷 4.5｜安全 4.6｜成本 4.7 → 总分 4.72） ★
-- C) Use prompt_toolkit (full-featured but heavier)
-   - 效果：范围/功能最强但重/风险中（学习曲线）/质量最高/用户体验最佳/复杂度高/工期长（3-4h）/成本中（大依赖）/可维护性好但复杂（加权：UX 5.0｜代码整洁 4.2｜部署便捷 3.8｜安全 4.5｜成本 3.8 → 总分 4.32）
-
-Q2. Menu display format - how to represent grouped symlinks?
-- A) Flat list with non-selectable group headers (skip_empty_entries) ★
-   - 效果：范围/保持现有分组逻辑/风险极低/质量/用户体验一致/复杂度低/工期短（30min）/成本低/可维护性强（加权：UX 4.8｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.92） ★
-- B) Multiple separate menus (one per group)
-   - 效果：范围/割裂导航/风险中/质量好/用户体验差（需切换菜单）/复杂度中/工期中（1h）/成本低/可维护性中（加权：UX 2.8｜代码整洁 4.0｜部署便捷 4.5｜安全 5.0｜成本 4.8 → 总分 3.88）
-- C) Hierarchical menu with nested sub-menus
-   - 效果：范围/过度设计/风险高/质量复杂/用户体验/认知负担大/复杂度高/工期长（2h）/成本中/可维护性差（加权：UX 3.2｜代码整洁 3.5｜部署便捷 4.0｜安全 4.8｜成本 4.0 → 总分 3.82）
-
-Q3. Preview pane design - what to show in STM preview?
-- A) Full details (name/path/target/status) with formatted text ★
-   - 效果：范围/信息完整/风险低/质量高/用户体验最佳（无需Enter查看）/复杂度低/工期短（20min）/成本低/可观测性强（加权：UX 4.9｜代码整洁 4.7｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.92） ★
-- B) Minimal preview (name + target only)
-   - 效果：范围/简洁但信息少/风险低/质量中/用户体验中/复杂度最低/工期最短（10min）/成本低/可观测性中（加权：UX 3.8｜代码整洁 4.8｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.52）
-- C) No preview (keep Enter for details)
-   - 效果：范围/保持现状/风险无/质量/无改进/用户体验/无增强/复杂度无/工期无/成本最低/可观测性现状（加权：UX 3.5｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.58）
-
-Q4. Edit target flow - how to handle user input?
-- A) Use click.prompt() for clean input (replace _prompt_input) ★
-   - 效果：范围/简化输入/风险极低/质量高（库实现）/用户体验标准/复杂度最低/工期最短（10min）/成本无（已有依赖）/可维护性最优（加权：UX 4.6｜代码整洁 4.9｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.88） ★
-- B) Keep custom _prompt_input editor
-   - 效果：范围/保持自定义/风险低/质量中/用户体验基础/复杂度中（~25行）/工期无/成本无/可维护性现状（加权：UX 3.8｜代码整洁 3.5｜部署便捷 5.0｜安全 4.5｜成本 5.0 → 总分 4.22）
-- C) Use separate action menu with edit sub-flow
-   - 效果：范围/多层交互/风险低/质量好/用户体验/多步骤/复杂度中/工期中（30min）/成本低/可维护性好（加权：UX 4.0｜代码整洁 4.4｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.56）
-
-Q5. Test strategy - how to update existing tests?
-- A) Update test_tui_alignment.py to test data structures (_build_rows) ★
-   - 效果：范围/保留核心逻辑测试/风险低/质量高（测试分组逻辑）/用户体验验证/复杂度低/工期短（20min）/成本低/可维护性强（加权：UX 4.5｜代码整洁 4.8｜部署便捷 4.8｜安全 4.8｜成本 4.8 → 总分 4.74） ★
-- B) Remove alignment tests entirely (library handles rendering)
-   - 效果：范围/删除测试/风险中（失去覆盖）/质量/无验证/用户体验/无保障/复杂度最低/工期最短（5min）/成本最低/可维护性/覆盖降低（加权：UX 3.8｜代码整洁 4.5｜部署便捷 5.0｜安全 3.5｜成本 5.0 → 总分 4.28）
-- C) Add integration tests with STM mocking
-   - 效果：范围/全面但复杂/风险低/质量最高/用户体验保障/复杂度高/工期长（1h）/成本中/可维护性需维护mock（加权：UX 4.8｜代码整洁 4.2｜部署便捷 4.2｜安全 4.8｜成本 4.0 → 总分 4.44）
-
-Q6. Search functionality - how to enable built-in search?
-- A) Enable search_key="/" in TerminalMenu config ★
-   - 效果：范围/零额外代码/风险极低/质量/库内置/用户体验显著提升（实时过滤）/复杂度无/工期极短（配置参数）/成本无/可维护性完美（加权：UX 5.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 5.00） ★
-- B) Implement custom search logic
-   - 效果：范围/重复造轮子/风险中/质量/需测试/用户体验可能更差/复杂度高/工期长（1h）/成本高/可维护性差（加权：UX 3.5｜代码整洁 3.0｜部署便捷 4.0｜安全 4.0｜成本 3.0 → 总分 3.54）
-- C) No search feature
-   - 效果：范围/错失特性/风险无/质量/无增强/用户体验/无改进/复杂度无/工期无/成本最低/可维护性现状（加权：UX 3.0｜代码整洁 5.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 4.28）
-
-Q7. Code removal - which custom functions to eliminate?
-- A) Remove all custom terminal code (_RawMode/_read_key/viewport/scroll/_prompt_input) ★
-   - 效果：范围/减少~200行/风险低/质量/简化维护/用户体验/库管理/复杂度降低/工期短（并入重构）/成本无/可维护性最优（加权：UX 4.8｜代码整洁 5.0｜部署便捷 5.0｜安全 4.8｜成本 5.0 → 总分 4.92） ★
-- B) Remove only _RawMode/_read_key, keep viewport logic
-   - 效果：范围/部分简化/风险中/质量/混合模式/用户体验改进有限/复杂度中/工期中/成本低/可维护性中（加权：UX 3.8｜代码整洁 3.8｜部署便捷 4.5｜安全 4.5｜成本 4.8 → 总分 4.18）
-- C) Minimal changes, keep most custom code
-   - 效果：范围/保守/风险最低/质量/无改进/用户体验/无增强/复杂度现状/工期无/成本最低/可维护性现状（加权：UX 3.2｜代码整洁 3.0｜部署便捷 5.0｜安全 5.0｜成本 5.0 → 总分 3.88）
-
-Q8. Migration strategy - how to ensure no regression?
-- A) Parallel implementation with feature parity check + manual testing ★
-   - 效果：范围/安全迁移/风险最低/质量高（对比验证）/用户体验保持/复杂度低/工期适中（2h total）/成本低/可回滚性完美（加权：UX 4.9｜代码整洁 4.7｜部署便捷 4.8｜安全 5.0｜成本 4.8 → 总分 4.84） ★
-- B) Direct replacement with minimal testing
-   - 效果：范围/快速但冒险/风险高/质量/可能回归/用户体验/不确定/复杂度低/工期最短（1h）/成本最低/可回滚性依赖git（加权：UX 3.5｜代码整洁 4.5｜部署便捷 5.0｜安全 3.0｜成本 5.0 → 总分 4.08）
-- C) Incremental refactoring (keep both implementations temporarily)
-   - 效果：范围/渐进但重/风险中/质量高/用户体验/A/B测试可能/复杂度高/工期长（3h）/成本高（双维护）/可回滚性完美（加权：UX 4.5｜代码整洁 3.5｜部署便捷 4.2｜安全 4.8｜成本 3.5 → 总分 4.14）
-
-建议与权衡：
-- 建议：Q1→B, Q2→A, Q3→A, Q4→A, Q5→A, Q6→A, Q7→A, Q8→A
-- 理由：
-  1. simple-term-menu 是成熟库，显著减少代码量（~200行），提升可维护性
-  2. 扁平列表+非可选header保持现有分组UX，无需用户重新学习
-  3. 完整预览面板大幅提升用户体验，无需频繁按Enter查看详情
-  4. click.prompt()替代自定义输入编辑器，减少~25行代码
-  5. 更新测试focus在数据逻辑（_build_rows），渲染交给库
-  6. 内置搜索（按/）零成本提供强大功能，显著提升大列表使用体验
-  7. 移除全部自定义终端代码，降低维护负担和跨平台问题
-  8. 并行实现+对比验证确保功能完全对等，安全迁移
-
+### 加权评分（Pugh，权重 UX 0.35 | 代码整洁 0.30 | 部署便捷 0.20 | 安全 0.10 | 成本 0.05）
+- Q1: A=3.9, B=4.5 ★, C=3.2
+- Q2: A=4.3 ★, B=3.7, C=3.1
+- Q3: A=4.6 ★, B=2.8, C=3.9
+- Q4: A=4.5 ★, B=3.8, C=3.3
+- Q5: A=4.4 ★, B=4.1, C=3.2
+- Q6: A=4.7 ★, B=4.0, C=2.5
+- Q7: A=4.4 ★, B=3.8, C=3.0
+- Q8: A=4.2, B=4.3 ★, C=3.6
