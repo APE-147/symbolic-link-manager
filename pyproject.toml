@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 slm = "slm.cli:main"
+lk = "slm.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
