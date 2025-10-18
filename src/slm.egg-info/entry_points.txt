@@ -1,2 +1,3 @@
 [console_scripts]
+lk = slm.cli:main
 slm = slm.cli:main
