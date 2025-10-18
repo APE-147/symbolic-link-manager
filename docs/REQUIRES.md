@@ -1,4 +1,34 @@
-## 最新需求（2025-10-18）
+## 最新需求（2025-10-18 Cycle 2：路径解析修复）
+
+**需求**：修复相对路径解析错误，使相对路径相对于 `data_root` 解析。
+
+**问题场景**：
+- 用户运行 `lk --data-root ~/Developer/Data --scan-roots ~/Developer/Cloud/Dropbox/-Code-`
+- 选择目标后输入相对路径：`dev/desktop/plan/todo-event-database-data/hepta_sync-data`
+- 遇到 `FileNotFoundError`，因为父目录不存在且路径被错误解析为相对于当前工作目录
+
+**根本原因**：
+- `cli.py:155` 中 `new_target.expanduser().resolve()` 将相对路径解析为相对于当前工作目录
+- 用户期望：相对路径相对于 `~/Developer/Data`（data_root）
+- 实际行为：相对路径相对于 `/Users/.../symbolic_link_changer`（cwd）
+
+**技术要求**：
+1. 在 `migrate_target_and_update_links()` 中添加 `data_root` 参数
+2. 智能路径解析：相对路径 → 相对于 `data_root` 解析；绝对路径 → 保持不变
+3. 在 `_safe_move_dir()` 中自动创建父目录（`new.parent.mkdir(parents=True, exist_ok=True)`）
+4. 更新 `main()` 函数传递 `data_root` 参数
+5. 添加相对路径解析测试用例
+6. 更新文档说明路径解析规则
+
+**验收标准**：
+- 用户输入 `dev/new` → 解析为 `~/Developer/Data/dev/new`
+- 绝对路径行为保持不变
+- 自动创建不存在的父目录
+- 所有现有测试通过 + 新增测试覆盖相对路径场景
+
+---
+
+## 需求（2025-10-18 Cycle 1：lk 命令别名）
 
 **需求**：添加全局命令别名 `lk` 以更便捷地触发项目。
 
