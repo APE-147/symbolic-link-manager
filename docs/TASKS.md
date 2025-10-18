@@ -28,3 +28,15 @@
 - [x] 文档与示例（README、更新 REQUIRES 与使用说明）
   * README.md 增补冲突策略、日志格式、配置载入提示
   * USAGE_EXAMPLE.md 对齐 JSON 时间戳格式、备份流程、进度 100%
+- [x] 修复相对路径解析错误（Cycle 2，2025-10-18）
+  * 要求：相对路径相对于 data_root 解析；自动创建父目录
+  * 说明：
+    - migrate_target_and_update_links() 添加 data_root 参数与智能路径解析
+    - _safe_move_dir() 自动创建父目录（mkdir parents=True）
+    - main() 传递 data_root 到迁移函数
+  * 测试命令：`pytest tests/` — 6/6 通过（新增 2 个测试）
+  * 证据：
+    - 提交：bc9f030
+    - 分支：fix/relative-path-resolution
+    - 新测试：test_migrate_with_relative_path_resolved_against_data_root, test_safe_move_dir_creates_parent_directories
+    - 文档：README.md L47-53（路径解析规则）, USAGE_EXAMPLE.md L90-94（相对路径示例）
