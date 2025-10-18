@@ -75,8 +75,11 @@ Next priority: Conflict/permission handling or configuration file support.
 ---
 
 ## Evidence Index
-- Updated: `AGENTS.md` (new)
-- Updated: `docs/PLAN.md` Progress line (synced with TASKS.md)
+- Code: `src/slm/cli.py` - Core implementation (350+ lines)
+- Tests: Manual testing with `/tmp/slm_test` structure
+- Logs: JSON Lines format implemented and verified
+- Docs: `USAGE_EXAMPLE.md` - Comprehensive usage guide
+- Commit: 7da33f1 "feat(slm): Implement questionary-based symlink target migration system"
 - Updated: `src/slm/cli.py` (added `--log-json`, JSON Lines writer)
 - Updated: `README.md` (documented `--log-json`)
 
