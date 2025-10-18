@@ -2,9 +2,11 @@ README.md
 pyproject.toml
 src/slm/__init__.py
 src/slm/cli.py
+src/slm/config.py
 src/slm.egg-info/PKG-INFO
 src/slm.egg-info/SOURCES.txt
 src/slm.egg-info/dependency_links.txt
 src/slm.egg-info/entry_points.txt
 src/slm.egg-info/requires.txt
 src/slm.egg-info/top_level.txt
+tests/test_cli.py
