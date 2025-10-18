@@ -6,7 +6,7 @@
 
 ## 项目快照（Snapshot）
 - 名称：slm — 基于 Questionary 的符号链接目标迁移工具
-- 入口：`slm`（`slm.cli:main`）｜运行环境：macOS，Python ≥3.9
+- 入口：`slm` / `lk`（均指向 `slm.cli:main`）｜运行环境：macOS，Python ≥3.9
 - 代码位置：`src/slm/`（核心：`cli.py`、`config.py`）
 - 文档骨架：`docs/{REQUIRES.md, PLAN.md, TASKS.md}`（合规）
 - 进度（取自 docs/TASKS.md 顶层）：9/9（100%）
@@ -127,6 +127,18 @@
 ---
 
 ## Run Log
+- 2025-10-18 [最新]：**[Feature: lk command alias]** 添加全局命令别名 `lk`
+  - 命令：手动执行（codex-feature agent）
+  - 退出码：0（成功）
+  - 变更摘要：
+    * pyproject.toml 添加 `lk = "slm.cli:main"` 入口点
+    * 验证：`which lk` 成功，`lk --help` 与 `slm --help` 一致
+    * 测试：pytest tests/ 全部通过（4/4）
+    * 文档更新：README.md、USAGE_EXAMPLE.md 添加 `lk` 命令说明
+    * docs/REQUIRES.md 追加新需求（2025-10-18）
+  - 分支：feat/add-lk-command
+  - 保存点：savepoint/2025-10-18-add-lk-command
+  - 证据：pyproject.toml L19，README.md L5，USAGE_EXAMPLE.md L17/L146
 - 2025-10-18 19:05：**[Codex Cycle 4]** 完成文档与示例更新
   - 命令：`codex exec -m gpt-5-codex --config model_reasoning_effort="high" "continue to next task"`
   - 退出码：0（成功）

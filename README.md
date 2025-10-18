@@ -2,7 +2,7 @@ slm — Symlink Target Migrator (Questionary)
 
 Quickstart
 - `pip install -e .`
-- Run `slm` and follow the prompts (Questionary UI).
+- Run `slm` (or the shorter alias `lk`) and follow the prompts (Questionary UI).
 
 What you get
 - Scans the requested roots (default `~`) for directory symlinks whose targets live beneath the Data root (default `~/Developer/Data`).
@@ -45,9 +45,10 @@ Logging
   ```
 
 CLI tips
-- `--scan-roots` accepts multiple paths: `slm --scan-roots ~ ~/Developer ~/Projects`.
+- `--scan-roots` accepts multiple paths: `slm --scan-roots ~ ~/Developer ~/Projects` (or use `lk` as a shorter alias).
 - The CLI already runs in dry-run mode by default; after previewing you confirm `执行上述操作吗？` to actually migrate.
 - Passing `--dry-run` keeps backward compatibility with earlier scripts; omitting it yields the same behaviour.
+- Both `slm` and `lk` commands are identical and can be used interchangeably.
 
 Safety
 - Only directory symlinks are considered; broken or file-only links are skipped.
