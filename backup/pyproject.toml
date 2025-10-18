@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "symlink-manager"
+version = "0.1.0"
+description = "Safe symlink scanner, classifier, and migrator CLI."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Claude Code" }
+]
+keywords = ["symlink", "cli", "filesystem", "migration", "backup"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: Other/Proprietary License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: System :: Filesystems",
+]
+dependencies = [
+  "click>=8.1,<9",
+  "rich>=13,<14",
+  "pyyaml>=6.0,<7",
+  "simple-term-menu>=1.6.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "ruff>=0.6",
+]
+textual = [
+  "textual>=0.60,<1.0",
+]
+
+[project.scripts]
+lk = "symlink_manager.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort (import sorting)
+  "W",   # warnings
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["symlink_manager"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
