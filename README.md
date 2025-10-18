@@ -44,6 +44,14 @@ Logging
   jq -r '.type' "$TMP/slm-actions.jsonl"
   ```
 
+Path resolution rules
+- **Absolute paths**: `/Users/niceday/Developer/Data/new_target` → used as-is.
+- **Home-relative paths**: `~/Developer/Data/new_target` → expanded to user's home directory.
+- **Relative paths**: `dev/new_target` → resolved against `--data-root`.
+  - Example: `--data-root ~/Developer/Data` + input `dev/new` → `/Users/niceday/Developer/Data/dev/new`
+  - Parent directories are auto-created if they don't exist.
+- This makes it easy to reorganize within your Data directory without typing the full path every time.
+
 CLI tips
 - `--scan-roots` accepts multiple paths: `slm --scan-roots ~ ~/Developer ~/Projects` (or use `lk` as a shorter alias).
 - The CLI already runs in dry-run mode by default; after previewing you confirm `执行上述操作吗？` to actually migrate.

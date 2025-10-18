@@ -107,8 +107,24 @@ class MigrationError(RuntimeError):
 
 
 def _safe_move_dir(old: Path, new: Path) -> None:
+    """Safe directory move; auto-creates parent directories; cross-device fallback.
+
+    Args:
+        old: Source directory path
+        new: Destination directory path
+
+    Raises:
+        MigrationError: If destination exists or parent directory cannot be created
+    """
     if new.exists():
         raise MigrationError(f"Destination exists: {new}")
+
+    # Auto-create parent directory if it doesn't exist
+    try:
+        new.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise MigrationError(f"Cannot create parent directory {new.parent}: {e}") from e
+
     try:
         old.rename(new)
     except OSError as e:
@@ -149,10 +165,20 @@ def migrate_target_and_update_links(
     dry_run: bool = True,
     conflict_strategy: str = "abort",
     backup_path: Optional[Path] = None,
+    data_root: Optional[Path] = None,
 ) -> List[str]:
     actions: List[str] = []
     current_target = current_target.resolve()
-    new_target = new_target.expanduser().resolve()
+    new_target = new_target.expanduser()
+
+    # Smart path resolution: relative paths are resolved against data_root
+    if not new_target.is_absolute():
+        if data_root:
+            new_target = (Path(data_root).resolve() / new_target).resolve()
+        else:
+            new_target = new_target.resolve()
+    else:
+        new_target = new_target.resolve()
 
     if current_target == new_target:
         raise MigrationError("New target equals current target.")
@@ -449,6 +475,7 @@ def main(argv=None):
             dry_run=args.dry_run,
             conflict_strategy=conflict_strategy,
             backup_path=backup_path,
+            data_root=data_root,
         )
     except MigrationError as e:
         print(f"校验失败：{e}")
@@ -484,6 +511,7 @@ def main(argv=None):
                 dry_run=False,
                 conflict_strategy=conflict_strategy,
                 backup_path=backup_path,
+                data_root=data_root,
             )
         except MigrationError as e:
             print(f"执行失败：{e}")

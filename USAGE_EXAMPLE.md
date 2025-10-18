@@ -81,9 +81,17 @@ slm --data-root ~/Developer/Data --scan-roots ~ ~/Developer
 ```
 
 4. 输入新的目标路径（支持 tab 自动补全）：
+
+**使用绝对路径**：
 ```
 输入新的目标绝对路径: /Users/niceday/Developer/Data/archived/myproject-data
 ```
+
+**使用相对路径**（相对于 `--data-root`，更简洁）：
+```
+输入新的目标绝对路径: archived/myproject-data
+```
+相对路径会自动解析为 `~/Developer/Data/archived/myproject-data`，父目录会自动创建。
 
 5. 如果新目标已存在，CLI 会提示冲突策略：
 ```
