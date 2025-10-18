@@ -40,3 +40,43 @@
     - 分支：fix/relative-path-resolution
     - 新测试：test_migrate_with_relative_path_resolved_against_data_root, test_safe_move_dir_creates_parent_directories
     - 文档：README.md L47-53（路径解析规则）, USAGE_EXAMPLE.md L90-94（相对路径示例）
+
+---
+
+## Cycle 3 任务（2025-10-18）：设置 lk 默认配置并移除 slm 命令
+
+- [ ] 修改 pyproject.toml 移除 slm 命令入口
+  * 要求：移除 `slm = "slm.cli:main"` 行，仅保留 `lk` 入口
+  * 说明：简化命令入口，避免混淆
+  * 测试命令：`pip install -e . && which slm`（应返回空）
+
+- [ ] 修改 src/slm/cli.py 设置默认参数
+  * 要求：在 _parse_args() 中设置 data-root 和 scan-roots 默认值；更新 prog 参数为 "lk"
+  * 说明：
+    - data-root 默认值：`"~/Developer/Data"`
+    - scan-roots 默认值：`["~/Developer/Cloud/Dropbox/-Code-"]`
+    - prog 参数从 "slm" 改为 "lk"
+  * 测试命令：`lk --help`（查看默认值说明）
+
+- [ ] 更新测试文件 tests/test_cli.py
+  * 要求：新增测试用例验证默认参数值
+  * 说明：测试 _parse_args([]) 返回的默认值是否正确
+  * 测试命令：`pytest tests/test_cli.py::test_parse_args_defaults -v`
+
+- [ ] 运行完整测试套件
+  * 要求：所有测试通过
+  * 说明：确保变更未破坏现有功能
+  * 测试命令：`pytest tests/ -v`
+
+- [ ] 更新文档（README.md, USAGE_EXAMPLE.md）
+  * 要求：说明默认配置；移除 slm 命令引用
+  * 说明：
+    - README.md 添加"默认配置"章节
+    - USAGE_EXAMPLE.md 更新示例为 `lk` 命令
+    - 说明 CLI 参数和配置文件可覆盖默认值
+  * 测试命令：手动检查文档完整性
+
+- [ ] 更新 AGENTS.md
+  * 要求：更新项目快照、Run Log、TODO 状态
+  * 说明：记录本次实施的变更摘要和证据
+  * 测试命令：检查 AGENTS.md 一致性

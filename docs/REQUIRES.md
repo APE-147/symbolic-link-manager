@@ -1,4 +1,33 @@
-## 最新需求（2025-10-18 Cycle 2：路径解析修复）
+## 最新需求（2025-10-18 Cycle 3：设置 lk 默认配置并移除 slm 命令）
+
+**来源**：用户反馈
+
+**需求描述**：
+1. 将 `lk --data-root ~/Developer/Data --scan-roots ~/Developer/Cloud/Dropbox/-Code-` 设为默认配置
+2. 用户运行 `lk` 时无需手动输入参数
+3. 移除 `slm` 命令入口，仅保留 `lk`
+
+**应用场景**：
+- 用户每次运行都使用相同的路径，希望简化命令行输入
+- 默认配置覆盖用户最常用的工作路径
+
+**技术实现**：
+- 修改 `src/slm/cli.py` 中的 `_parse_args()` 默认值
+- 修改 `pyproject.toml` 移除 `slm` 入口点
+- 保持 CLI 参数和配置文件覆盖能力
+- 更新文档说明默认配置
+
+**验收标准**：
+- `lk` 命令默认使用 `~/Developer/Data` 作为 data-root
+- `lk` 命令默认使用 `~/Developer/Cloud/Dropbox/-Code-` 作为 scan-roots
+- `slm` 命令已移除（`which slm` 返回空）
+- `lk` 无参数即可启动
+- CLI 参数仍可覆盖默认值
+- 所有测试通过
+
+---
+
+## 需求（2025-10-18 Cycle 2：路径解析修复）
 
 **需求**：修复相对路径解析错误，使相对路径相对于 `data_root` 解析。
 
