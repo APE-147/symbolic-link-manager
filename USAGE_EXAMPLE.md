@@ -14,7 +14,7 @@ pip install -e .
 #### 交互式选单（默认 dry-run + 结果确认）
 
 ```bash
-slm
+slm  # 或使用更短的别名: lk
 ```
 
 默认行为：
@@ -143,7 +143,7 @@ JSON 日志格式示例（`ts` 为 Unix 时间戳浮点数）：
 ## 命令行选项
 
 ```
-slm [选项]
+slm [选项]   # 或使用别名: lk [选项]
 
 选项:
   --data-root PATH       Data 目录的根路径（默认: ~/Developer/Data）
@@ -151,6 +151,8 @@ slm [选项]
   --dry-run              仅预览迁移计划（默认开启，用于兼容旧脚本）
   --log-json PATH        记录操作日志到 JSON Lines 文件
   -h, --help             显示帮助信息
+
+注：slm 和 lk 完全等价，可互换使用。
 ```
 
 ## 安全特性
