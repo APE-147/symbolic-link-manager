@@ -127,7 +127,26 @@
 ---
 
 ## Run Log
-- 2025-10-18 [最新]：**[Feature: lk command alias]** 添加全局命令别名 `lk`
+- 2025-10-18 [最新]：**[Fix: Relative path resolution]** 修复相对路径解析错误
+  - 命令：手动执行（codex-feature agent）
+  - 退出码：0（成功）
+  - 变更摘要：
+    * 问题：用户使用相对路径（如 `dev/new`）时遇到 FileNotFoundError
+    * 根因：相对路径被解析为相对于 cwd 而非 data_root；父目录不存在
+    * 修复：
+      - migrate_target_and_update_links() 添加 data_root 参数与智能路径解析
+      - _safe_move_dir() 自动创建父目录（mkdir parents=True）
+      - main() 传递 data_root 到迁移函数
+    * 测试：6/6 通过（新增 2 个测试）
+    * 文档：README.md 添加"Path resolution rules"；USAGE_EXAMPLE.md 添加相对路径示例
+  - 分支：fix/relative-path-resolution
+  - 保存点：savepoint/2025-10-18-relative-path-fix
+  - 提交：bc9f030
+  - 证据：
+    - 测试报告：pytest tests/ -v (6 passed in 0.11s)
+    - 新测试：test_migrate_with_relative_path_resolved_against_data_root, test_safe_move_dir_creates_parent_directories
+    - 文档更新：README.md L47-53, USAGE_EXAMPLE.md L90-94
+- 2025-10-18：**[Feature: lk command alias]** 添加全局命令别名 `lk`
   - 命令：手动执行（codex-feature agent）
   - 退出码：0（成功）
   - 变更摘要：
