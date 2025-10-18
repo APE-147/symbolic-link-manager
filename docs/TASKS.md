@@ -12,7 +12,19 @@
   * dry-run 阶段显示当前和新目标的摘要
   * 执行后显示最终目标的摘要
   - [x] JSON 操作日志与 `--log-json` 标志（追加 JSON Lines，含 phase/type/from/to/link/ts）
-- [ ] 冲突与权限处理（目标存在策略、忽略清单、仅目录型符号链接）
-- [ ] CLI 与配置（扫描根参数/配置文件、默认值）
-- [ ] 测试最小集（模拟数据集与烟雾测试）
-- [ ] 文档与示例（README、更新 REQUIRES 与使用说明）
+- [x] 冲突与权限处理（目标存在策略、忽略清单、仅目录型符号链接）
+  * 要求：检测目标已存在，提供 Abort/Backup 选项
+  * 说明：实现 `_derive_backup_path()` 生成带时间戳的备份路径（格式：`dir~YYYYMMDD-HHMMSS`）
+  * 测试命令：创建已存在的目标目录，运行 slm 并选择备份策略
+  * 证据：2025-10-18 codex cycle 1 完成（commit pending）
+- [x] CLI 与配置（扫描根参数/配置文件、默认值）
+  * 支持 `~/.config/slm.yml`（PyYAML），CLI 参数优先级最高
+  * 读取配置后打印加载路径，默认回退至 `~/Developer/Data` 与 `~`
+- [x] 测试最小集（模拟数据集与烟雾测试）
+  * 要求：至少 3 个单元测试，1 个集成测试
+  * 说明：测试 backup path 生成、冲突处理、备份迁移、完整 dry-run→apply 流程
+  * 测试命令：`pytest tests/` — 全部通过 (4 个测试)
+  * 证据：2025-10-18 codex cycle 3（创建 tests/test_cli.py，100% 通过率）
+- [x] 文档与示例（README、更新 REQUIRES 与使用说明）
+  * README.md 增补冲突策略、日志格式、配置载入提示
+  * USAGE_EXAMPLE.md 对齐 JSON 时间戳格式、备份流程、进度 100%
