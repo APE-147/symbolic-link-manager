@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from slm import cli
-from slm.cli import MigrationError, _derive_backup_path, migrate_target_and_update_links
+from slm.cli import MigrationError, _derive_backup_path, _safe_move_dir, migrate_target_and_update_links
 from slm.config import LoadedConfig
 
 
@@ -141,3 +141,52 @@ def test_main_dry_run_and_apply(tmp_path, monkeypatch, capsys):
     assert (new_target / "data.txt").read_text() == "123"
     assert not target.exists()
     assert link_path.resolve() == new_target
+
+
+def test_migrate_with_relative_path_resolved_against_data_root(tmp_path):
+    """Test that relative paths are resolved against data_root, not cwd."""
+    data_root = tmp_path / "Data"
+    data_root.mkdir()
+
+    current_target = data_root / "old"
+    current_target.mkdir()
+    (current_target / "file.txt").write_text("test")
+
+    link_path = tmp_path / "link"
+    link_path.symlink_to(current_target)
+
+    # Relative path (should be resolved against data_root)
+    new_target = Path("subdir/new")
+
+    migrate_target_and_update_links(
+        current_target,
+        new_target,
+        [link_path],
+        dry_run=False,
+        data_root=data_root,
+    )
+
+    expected = data_root / "subdir/new"
+    assert expected.exists()
+    assert (expected / "file.txt").read_text() == "test"
+    assert link_path.resolve() == expected
+    assert not current_target.exists()
+
+
+def test_safe_move_dir_creates_parent_directories(tmp_path):
+    """Test that _safe_move_dir auto-creates parent directories."""
+    old = tmp_path / "old"
+    old.mkdir()
+    (old / "file.txt").write_text("test")
+
+    # Parent directories don't exist
+    new = tmp_path / "nonexistent" / "parent" / "new"
+
+    _safe_move_dir(old, new)
+
+    assert new.exists()
+    assert (new / "file.txt").read_text() == "test"
+    assert not old.exists()
+    # Verify parent was created
+    assert new.parent.exists()
+    assert new.parent.parent.exists()
