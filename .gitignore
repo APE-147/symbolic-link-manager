@@ -47,6 +47,7 @@ coverage.xml
 
 # Environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -70,3 +71,30 @@ venv.bak/
 data/
 *.log
 *.jsonl
+
+# Security - Keys and Credentials
+*.pem
+*.key
+id_rsa
+id_rsa.*
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.gpg
+*.asc
+secrets.*
+*.crt
+*.der
+*.kdbx
+
+# Database files
+*.sqlite
+*.db
+*.mdb
+
+# Backup and temporary directories
+dumps/
+backups/
+exports/
+.cache/
