@@ -127,7 +127,40 @@
 ---
 
 ## Run Log
-- 2025-10-18 [最新]：**[Fix: Relative path resolution]** 修复相对路径解析错误
+- 2025-10-19 [最新]：**[Security: Privacy hardening & Git hygiene]** 完成隐私保护与仓库安全加固
+  - 命令：手动执行（Claude Code + codex hybrid approach）
+  - 退出码：0（成功）
+  - 变更摘要：
+    * **环境变量集成**：
+      - 添加 python-dotenv>=1.0.0 依赖
+      - 实现 `SLM_DATA_ROOT` 和 `SLM_SCAN_ROOTS` 环境变量支持
+      - 创建 `.env.example` 文件（仅占位符，无真实值）
+      - 配置优先级：CLI > ENV > ~/.config/slm.yml > 内置默认值
+    * **文档净化**：
+      - 替换所有 `/Users/niceday/` 为 `/Users/username/`
+      - 影响文件：README.md, USAGE_EXAMPLE.md, docs/*.md
+      - 保持示例路径的教学价值，仅脱敏用户名
+    * **Git 历史净化**：
+      - 使用 git-filter-repo 重写历史 (39 commits processed)
+      - 替换所有历史提交中的真实用户名
+      - 验证：主要代码文件已清理，残留仅在二进制 .pyc 中（非敏感）
+    * **.gitignore 强化**：
+      - 已包含：.env*, *.pem, *.key, id_rsa*, secrets.*, 数据库文件
+      - 已排除：data/ (本地符号链接)，dumps/, backups/
+    * **GitHub 私有仓库**：
+      - 仓库名：symbolic-link-manager (✅ 默认项目文件夹名)
+      - 可见性：Private
+      - URL: https://github.com/APE-147/symbolic-link-manager
+      - 推送：所有分支 + 所有标签
+  - 测试：16/16 通过 (新增环境变量测试)
+  - 文档：创建 SECURITY.md (完整审计报告)
+  - 分支：feat/set-lk-defaults (包含所有安全增强)
+  - 证据：
+    - `.env.example` 存在且仅含占位符
+    - `rg "/Users/niceday" --glob="!backup/**"` 无匹配
+    - `gh repo view APE-147/symbolic-link-manager --json isPrivate` 返回 true
+    - pytest 100% 通过率
+- 2025-10-18：**[Fix: Relative path resolution]** 修复相对路径解析错误
   - 命令：手动执行（codex-feature agent）
   - 退出码：0（成功）
   - 变更摘要：
