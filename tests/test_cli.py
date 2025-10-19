@@ -190,3 +190,31 @@ def test_safe_move_dir_creates_parent_directories(tmp_path):
     # Verify parent was created
     assert new.parent.exists()
     assert new.parent.parent.exists()
+
+
+def test_exit_choice_returns_string_without_crash(tmp_path, monkeypatch, capsys):
+    """Ensure selecting the literal label '退出' exits cleanly (no KeyError)."""
+    data_root = tmp_path / "Developer" / "Data"
+    target = data_root / "project"
+    target.mkdir(parents=True)
+
+    # Create one symlink so the target selection menu is shown
+    link_root = tmp_path / "links"
+    link_root.mkdir()
+    (link_root / "p").symlink_to(target)
+
+    # Force the select prompt to return the label string instead of None
+    from slm import cli
+
+    monkeypatch.setattr(cli, "load_config", lambda: LoadedConfig(data={}, path=None))
+
+    def fake_select(*args, **kwargs):
+        return DummyPrompt("退出")
+
+    monkeypatch.setattr(cli.questionary, "select", fake_select)
+
+    exit_code = cli.main(["--data-root", str(data_root), "--scan-roots", str(link_root)])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "已取消" in out

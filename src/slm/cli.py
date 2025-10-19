@@ -425,7 +425,12 @@ def main(argv=None):
         "选择一个被指向的目标文件夹:", choices=choices
     ).ask()
 
-    if not selected_target:
+    # Graceful exit handling across Questionary versions:
+    # - Expected: our "退出" choice returns value=None
+    # - Some environments may return the label string (e.g., "退出")
+    # - Also handle unexpected values not present in grouped keys
+    if selected_target is None or selected_target not in grouped:
+        print("已取消。")
         return 0
 
     links = [info.source for info in grouped[selected_target]]
