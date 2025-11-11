@@ -99,3 +99,63 @@ dumps/
 backups/
 exports/
 .cache/
+
+# IDE and Editor
+**/.vscode/
+**/.idea/
+**/.specstory/
+**/.history/
+**/.cursorindexingignore
+
+# Environment
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Python
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/.ipynb_checkpoints/
+*.pyc
+*.pyo
+*.pyd
+
+# Data and Backups
+**/data/
+**/backup/
+**/backups/
+
+# Temporary Files
+*.tmp
+*.temp
+*.log
+*.cache
+*.swp
+*.swo
+*~
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+**/._*
+
+# Windows
+**/Thumbs.db
+**/Desktop.ini
+**/*.lnk
+**/*.symlink
+
+# Dropbox
+**/.dropbox
+**/.dropbox.cache
+
+# Syncthing
+**/.stfolder
+**/.stignore
+**/.stversions
+
+# Claude
+**/.claude
+**/.sync
