@@ -1,13 +1,10 @@
 import argparse
-import os
-import shutil
-import sys
 import json
+import os
+import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple, Any
-from contextlib import suppress
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
     import questionary
@@ -20,255 +17,16 @@ from .config import (
     coerce_scan_roots,
     load_config,
 )
-
-
-# -------------------------
-# Scanning utilities
-# -------------------------
-
-@dataclass(frozen=True)
-class SymlinkInfo:
-    source: Path  # the symlink path
-    target: Path  # resolved absolute target path
-
-
-def _is_symlink_dir(p: Path) -> bool:
-    try:
-        return p.is_symlink() and p.resolve(strict=True).is_dir()
-    except FileNotFoundError:
-        return False
-
-
-def _resolve_symlink_target_abs(p: Path) -> Path:
-    # Do not use readlink directly; resolve handles relative targets
-    return p.resolve(strict=True)
-
-
-def scan_symlinks_pointing_into_data(
-    scan_roots: Iterable[Path], data_root: Path, excludes: Tuple[str, ...] = (".git", "Library", ".cache", "node_modules", ".venv", "venv")
-) -> List[SymlinkInfo]:
-    data_root = data_root.resolve()
-    found: List[SymlinkInfo] = []
-    for root in scan_roots:
-        root = root.expanduser().resolve()
-        for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
-            # prune excludes
-            dirnames[:] = [d for d in dirnames if d not in excludes]
-            # check directory entries that are symlinks
-            for name in list(dirnames) + filenames:
-                p = Path(dirpath) / name
-                if not p.is_symlink():
-                    continue
-                try:
-                    target = _resolve_symlink_target_abs(p)
-                except FileNotFoundError:
-                    continue  # broken symlink
-                if not target.is_dir():
-                    continue
-                try:
-                    target.relative_to(data_root)
-                except ValueError:
-                    continue  # not inside data_root
-                found.append(SymlinkInfo(source=p, target=target))
-    return found
-
-
-def group_by_target_within_data(
-    infos: Iterable[SymlinkInfo], data_root: Path
-) -> Dict[Path, List[SymlinkInfo]]:
-    grouped: Dict[Path, List[SymlinkInfo]] = {}
-    for info in infos:
-        key = info.target
-        grouped.setdefault(key, []).append(info)
-
-    data_root = Path(data_root).resolve()
-
-    def _sort_key(p: Path) -> str:
-        """Sort targets by path relative to data_root when possible.
-
-        Falls back to absolute path if the target is not within data_root.
-        """
-        try:
-            rel = p.resolve().relative_to(data_root)
-            return str(rel).lower()
-        except Exception:
-            return str(p.resolve()).lower()
-
-    # Stable order by relative path for nicer UX in menus
-    return dict(sorted(grouped.items(), key=lambda kv: _sort_key(kv[0])))
-
-
-# -------------------------
-# Migration (minimal, safe-first)
-# -------------------------
-
-class MigrationError(RuntimeError):
-    pass
-
-
-def _safe_move_dir(old: Path, new: Path) -> None:
-    """Safe directory move; auto-creates parent directories; cross-device fallback.
-
-    Args:
-        old: Source directory path
-        new: Destination directory path
-
-    Raises:
-        MigrationError: If destination exists or parent directory cannot be created
-    """
-    if new.exists():
-        raise MigrationError(f"Destination exists: {new}")
-
-    # Auto-create parent directory if it doesn't exist
-    try:
-        new.parent.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        raise MigrationError(f"Cannot create parent directory {new.parent}: {e}") from e
-
-    try:
-        old.rename(new)
-    except OSError as e:
-        # cross-device move fallback
-        if getattr(e, "errno", None) == 18 or "cross-device" in str(e).lower():
-            shutil.copytree(old, new)
-            shutil.rmtree(old)
-        else:
-            raise
-
-
-def _derive_backup_path(target: Path, now: Optional[float] = None) -> Path:
-    """Return a timestamp-based backup path for an existing target.
-
-    Example: /path/to/dir -> /path/to/dir~20251018-132455
-    """
-    timestamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(now or time.time()))
-    base = target.with_name(f"{target.name}~{timestamp}")
-    candidate = base
-    counter = 1
-    while candidate.exists():
-        candidate = target.with_name(f"{target.name}~{timestamp}-{counter}")
-        counter += 1
-    return candidate
-
-
-def _retarget_symlink(link: Path, new_target: Path) -> None:
-    if not link.is_symlink():
-        raise MigrationError(f"Not a symlink: {link}")
-    link.unlink()
-    os.symlink(str(new_target), str(link))
-
-
-def migrate_target_and_update_links(
-    current_target: Path,
-    new_target: Path,
-    links: Iterable[Path],
-    dry_run: bool = True,
-    conflict_strategy: str = "abort",
-    backup_path: Optional[Path] = None,
-    data_root: Optional[Path] = None,
-) -> List[str]:
-    actions: List[str] = []
-    current_target = current_target.resolve()
-    new_target = new_target.expanduser()
-
-    # Smart path resolution: relative paths are resolved against data_root
-    if not new_target.is_absolute():
-        if data_root:
-            new_target = (Path(data_root).resolve() / new_target).resolve()
-        else:
-            new_target = new_target.resolve()
-    else:
-        new_target = new_target.resolve()
-
-    if current_target == new_target:
-        raise MigrationError("New target equals current target.")
-    try:
-        current_target.relative_to("/")
-        new_target.relative_to("/")
-    except Exception:
-        pass  # paths are absolute already by resolve
-    if str(new_target).startswith(str(current_target) + os.sep):
-        raise MigrationError("New target cannot be inside current target.")
-
-    backup_in_use: Optional[Path] = None
-    if new_target.exists():
-        if conflict_strategy == "abort":
-            raise MigrationError(f"Destination exists: {new_target}")
-        if conflict_strategy != "backup":
-            raise MigrationError(f"Unsupported conflict strategy: {conflict_strategy}")
-        backup_in_use = backup_path or _derive_backup_path(new_target)
-        actions.append(f"Backup: {new_target} -> {backup_in_use}")
-
-    actions.append(f"Move: {current_target} -> {new_target}")
-    for link in links:
-        actions.append(f"Link: {link} -> {new_target}")
-
-    if dry_run:
-        return actions
-
-    if backup_in_use:
-        if backup_in_use.exists():
-            raise MigrationError(f"Backup destination exists: {backup_in_use}")
-        try:
-            new_target.rename(backup_in_use)
-        except OSError as exc:
-            raise MigrationError(f"Failed to backup existing destination: {exc}") from exc
-
-    _safe_move_dir(current_target, new_target)
-    for link in links:
-        _retarget_symlink(link, new_target)
-
-    # verify
-    if not new_target.exists():
-        raise MigrationError(f"Move failed, missing: {new_target}")
-    for link in links:
-        if Path(link).resolve(strict=True) != new_target:
-            raise MigrationError(f"Verification failed for symlink: {link}")
-    return actions
-
-
-# -------------------------
-# CLI
-# -------------------------
-def _fast_tree_summary(path: Path) -> Tuple[int, int]:
-    """Return (file_count, total_bytes) for a directory tree quickly.
-
-    - Counts only regular files; ignores symlinks and special files.
-    - Does not follow symlinks.
-    - Skips entries on PermissionError/ENOENT without failing.
-    """
-    path = Path(path)
-    if not path.exists() or not path.is_dir():
-        return (0, 0)
-
-    files = 0
-    total_bytes = 0
-    stack: List[Path] = [path]
-    while stack:
-        d = stack.pop()
-        try:
-            with os.scandir(d) as it:
-                for entry in it:
-                    # Skip broken entries permissively
-                    with suppress(FileNotFoundError, PermissionError, OSError):
-                        if entry.is_dir(follow_symlinks=False):
-                            stack.append(Path(entry.path))
-                            continue
-                        if entry.is_file(follow_symlinks=False):
-                            files += 1
-                            with suppress(FileNotFoundError, PermissionError, OSError):
-                                st = entry.stat(follow_symlinks=False)
-                                total_bytes += int(getattr(st, "st_size", 0))
-        except (FileNotFoundError, PermissionError, NotADirectoryError, OSError):
-            # Directory vanished or not accessible; skip
-            continue
-    return (files, total_bytes)
-
-def _fmt_summary_pair(curr: Tuple[int, int], new: Tuple[int, int]) -> str:
-    return (
-        f"summary(current=files:{curr[0]} bytes:{curr[1]}, "
-        f"new=files:{new[0]} bytes:{new[1]})"
-    )
+from .core import (
+    MigrationError,
+    _derive_backup_path,
+    _safe_move_dir,
+    fast_tree_summary,
+    format_summary_pair,
+    group_by_target_within_data,
+    migrate_target_and_update_links,
+    scan_symlinks_pointing_into_data,
+)
 
 def _parse_args(argv):
     p = argparse.ArgumentParser(
@@ -491,9 +249,9 @@ def main(argv=None):
         for line in plan:
             print(f"  • {line}")
         # Fast tree summaries for preview
-        curr_summary = _fast_tree_summary(selected_target)
-        new_summary = _fast_tree_summary(new_target) if new_target.exists() else (0, 0)
-        print(_fmt_summary_pair(curr_summary, new_summary))
+        curr_summary = fast_tree_summary(selected_target)
+        new_summary = fast_tree_summary(new_target) if new_target.exists() else (0, 0)
+        print(format_summary_pair(curr_summary, new_summary))
         if args.log_json:
             _append_json_log(
                 args.log_json,
@@ -531,11 +289,11 @@ def main(argv=None):
                 backup_entry=(new_target, backup_path) if backup_path else None,
             )
         # Final summary for new target after apply
-        final_new = _fast_tree_summary(new_target)
+        final_new = fast_tree_summary(new_target)
         print(f"summary(new=files:{final_new[0]} bytes:{final_new[1]})")
     else:
         # Non-dry-run invocation: operation already applied above
-        final_new = _fast_tree_summary(new_target)
+        final_new = fast_tree_summary(new_target)
         print(f"summary(new=files:{final_new[0]} bytes:{final_new[1]})")
 
     print("完成。已验证符号链接指向新目标。")

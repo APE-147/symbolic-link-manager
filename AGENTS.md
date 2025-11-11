@@ -86,7 +86,7 @@
   * 测试命令：`pytest tests/` — 4/4 通过
   * 证据：2025-10-18 codex cycle 3（创建 tests/test_cli.py）
 - [ ] 文档与示例（README、更新 REQUIRES 与使用说明）
-  * 要求：更新 README 和 USAGE_EXAMPLE.md
+  * 要求：更新 README 和 docs/USAGE_EXAMPLE.md
   * 说明：包含冲突处理和配置文件示例
   * 测试命令：检查文档完整性
 
@@ -138,7 +138,7 @@
       - 配置优先级：CLI > ENV > ~/.config/slm.yml > 内置默认值
     * **文档净化**：
       - 替换所有 `/Users/niceday/` 为 `/Users/username/`
-      - 影响文件：README.md, USAGE_EXAMPLE.md, docs/*.md
+      - 影响文件：README.md, docs/USAGE_EXAMPLE.md, docs/*.md
       - 保持示例路径的教学价值，仅脱敏用户名
     * **Git 历史净化**：
       - 使用 git-filter-repo 重写历史 (39 commits processed)
@@ -153,7 +153,7 @@
       - URL: https://github.com/APE-147/symbolic-link-manager
       - 推送：所有分支 + 所有标签
   - 测试：16/16 通过 (新增环境变量测试)
-  - 文档：创建 SECURITY.md (完整审计报告)
+  - 文档：创建 docs/SECURITY.md (完整审计报告)
   - 分支：feat/set-lk-defaults (包含所有安全增强)
   - 证据：
     - `.env.example` 存在且仅含占位符
@@ -171,14 +171,14 @@
       - _safe_move_dir() 自动创建父目录（mkdir parents=True）
       - main() 传递 data_root 到迁移函数
     * 测试：6/6 通过（新增 2 个测试）
-    * 文档：README.md 添加"Path resolution rules"；USAGE_EXAMPLE.md 添加相对路径示例
+    * 文档：README.md 添加"Path resolution rules"；docs/USAGE_EXAMPLE.md 添加相对路径示例
   - 分支：fix/relative-path-resolution
   - 保存点：savepoint/2025-10-18-relative-path-fix
   - 提交：bc9f030
   - 证据：
     - 测试报告：pytest tests/ -v (6 passed in 0.11s)
     - 新测试：test_migrate_with_relative_path_resolved_against_data_root, test_safe_move_dir_creates_parent_directories
-    - 文档更新：README.md L47-53, USAGE_EXAMPLE.md L90-94
+    - 文档更新：README.md L47-53, docs/USAGE_EXAMPLE.md L90-94
 - 2025-10-18：**[Feature: lk command alias]** 添加全局命令别名 `lk`
   - 命令：手动执行（codex-feature agent）
   - 退出码：0（成功）
@@ -186,19 +186,19 @@
     * pyproject.toml 添加 `lk = "slm.cli:main"` 入口点
     * 验证：`which lk` 成功，`lk --help` 与 `slm --help` 一致
     * 测试：pytest tests/ 全部通过（4/4）
-    * 文档更新：README.md、USAGE_EXAMPLE.md 添加 `lk` 命令说明
+    * 文档更新：README.md、docs/USAGE_EXAMPLE.md 添加 `lk` 命令说明
     * docs/REQUIRES.md 追加新需求（2025-10-18）
   - 分支：feat/add-lk-command
   - 保存点：savepoint/2025-10-18-add-lk-command
-  - 证据：pyproject.toml L19，README.md L5，USAGE_EXAMPLE.md L17/L146
+  - 证据：pyproject.toml L19，README.md L5，docs/USAGE_EXAMPLE.md L17/L146
 - 2025-10-18 19:05：**[Codex Cycle 4]** 完成文档与示例更新
   - 命令：`codex exec -m gpt-5-codex --config model_reasoning_effort="high" "continue to next task"`
   - 退出码：0（成功）
   - 变更摘要：
     * README.md 补充冲突策略、日志时间戳、配置加载提示
-    * USAGE_EXAMPLE.md 对齐备份流程示例、JSON 日志格式、项目进度 100%
+    * docs/USAGE_EXAMPLE.md 对齐备份流程示例、JSON 日志格式、项目进度 100%
     * 同步 docs/TASKS.md 勾选最终任务，docs/PLAN.md 进度更新至 9/9
-  - Docs Sync：AGENTS.md、README.md、USAGE_EXAMPLE.md 已更新
+  - Docs Sync：AGENTS.md、README.md、docs/USAGE_EXAMPLE.md 已更新
 - 2025-10-18 18:15：**[Codex Cycle 3]** 完成测试套件
   - 命令：`codex exec -m gpt-5-codex --config model_reasoning_effort="high" "continue to next task"`
   - 退出码：0（成功）
@@ -236,7 +236,7 @@
 
 ## 证据索引（Evidence）
 - 代码：`src/slm/cli.py`（核心实现，扫描/迁移/日志/摘要）。
-- 文档：`docs/{REQUIRES.md, PLAN.md, TASKS.md}`, `USAGE_EXAMPLE.md`。
+- 文档：`docs/{REQUIRES.md, PLAN.md, TASKS.md}`, `docs/USAGE_EXAMPLE.md`。
 - 备份资料：`backup/docs/*`（文本研究与阶段报告）。
 
 ---

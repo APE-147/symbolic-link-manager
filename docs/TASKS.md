@@ -27,7 +27,7 @@
   * 证据：2025-10-18 codex cycle 3（创建 tests/test_cli.py，100% 通过率）
 - [x] 文档与示例（README、更新 REQUIRES 与使用说明）
   * README.md 增补冲突策略、日志格式、配置载入提示
-  * USAGE_EXAMPLE.md 对齐 JSON 时间戳格式、备份流程、进度 100%
+  * docs/USAGE_EXAMPLE.md 对齐 JSON 时间戳格式、备份流程、进度 100%
 - [x] 修复相对路径解析错误（Cycle 2，2025-10-18）
   * 要求：相对路径相对于 data_root 解析；自动创建父目录
   * 说明：
@@ -39,7 +39,7 @@
     - 提交：bc9f030
     - 分支：fix/relative-path-resolution
     - 新测试：test_migrate_with_relative_path_resolved_against_data_root, test_safe_move_dir_creates_parent_directories
-    - 文档：README.md L47-53（路径解析规则）, USAGE_EXAMPLE.md L90-94（相对路径示例）
+    - 文档：README.md L47-53（路径解析规则）, docs/USAGE_EXAMPLE.md L90-94（相对路径示例）
 
 ---
 
@@ -68,11 +68,11 @@
   * 说明：确保变更未破坏现有功能
   * 测试命令：`pytest tests/ -v`
 
-- [ ] 更新文档（README.md, USAGE_EXAMPLE.md）
+- [ ] 更新文档（README.md, docs/USAGE_EXAMPLE.md）
   * 要求：说明默认配置；移除 slm 命令引用
   * 说明：
     - README.md 添加"默认配置"章节
-    - USAGE_EXAMPLE.md 更新示例为 `lk` 命令
+    - docs/USAGE_EXAMPLE.md 更新示例为 `lk` 命令
     - 说明 CLI 参数和配置文件可覆盖默认值
   * 测试命令：手动检查文档完整性
 

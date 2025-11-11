@@ -37,7 +37,7 @@ $ cat .env.example
 
 **Files Cleaned**:
 - README.md
-- USAGE_EXAMPLE.md
+- docs/USAGE_EXAMPLE.md
 - docs/PLAN.md
 - docs/REQUIRES.md
 - docs/TASKS.md

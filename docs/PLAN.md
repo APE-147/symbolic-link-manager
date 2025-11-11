@@ -100,7 +100,7 @@ Decision Questions（针对相对路径解析问题）
 - 修改：migrate_target_and_update_links() 添加 data_root 参数与智能解析
 - 修改：_safe_move_dir() 自动创建父目录
 - 测试：新增 2 个测试用例，全部 6 个测试通过
-- 文档：README.md 添加路径解析规则；USAGE_EXAMPLE.md 添加示例
+- 文档：README.md 添加路径解析规则；docs/USAGE_EXAMPLE.md 添加示例
 - 验收：用户输入 `dev/new` 正确解析为 `~/Developer/Data/dev/new`
 
 ---
@@ -306,7 +306,7 @@ Q6. 测试策略？
 **建议：选择 A** - 轻量单元测试，足以覆盖默认值变更
 
 Q7. 文档更新范围？
-- A) 仅更新 README.md 和 USAGE_EXAMPLE.md
+- A) 仅更新 README.md 和 docs/USAGE_EXAMPLE.md
   - 效果：
     * 范围：修改 2 个文件
     * 风险：低
