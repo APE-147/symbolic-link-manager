@@ -5,6 +5,7 @@ from .migration import (
     _derive_backup_path,
     _safe_move_dir,
     migrate_target_and_update_links,
+    rewrite_links_to_relative,
 )
 from .scanner import (
     SymlinkInfo,
@@ -22,5 +23,6 @@ __all__ = [
     "format_summary_pair",
     "group_by_target_within_data",
     "migrate_target_and_update_links",
+    "rewrite_links_to_relative",
     "scan_symlinks_pointing_into_data",
 ]

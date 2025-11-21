@@ -25,6 +25,8 @@ from .core import (
     format_summary_pair,
     group_by_target_within_data,
     migrate_target_and_update_links,
+    rewrite_links_to_relative,
+    SymlinkInfo,
     scan_symlinks_pointing_into_data,
 )
 
@@ -42,7 +44,18 @@ def _parse_args(argv):
         "--scan-roots",
         nargs="*",
         default=None,
-        help="Roots to scan for symlink sources (default: ~)",
+        help="Roots to scan for symlink sources (default: ~/Developer/Cloud/Dropbox/-Code-/Scripts)",
+    )
+    p.add_argument(
+        "--link-mode",
+        choices=["relative", "absolute", "inline"],
+        default="relative",
+        help="How to handle links: relative symlinks (default), absolute symlinks, or inline without symlinks",
+    )
+    p.add_argument(
+        "--relative",
+        action="store_true",
+        help="Rewrite found symlinks to relative paths without moving their targets",
     )
     p.add_argument(
         "--dry-run",
@@ -66,6 +79,7 @@ def _append_json_log(
     new_target: Path,
     links: Iterable[Path],
     backup_entry: Optional[Tuple[Path, Path]] = None,
+    link_mode: str = "relative",
 ) -> None:
     """Append action records as JSON Lines.
 
@@ -91,16 +105,44 @@ def _append_json_log(
             "type": "move",
             "from": str(current_target),
             "to": str(new_target),
+            "link_mode": link_mode,
             "ts": ts,
         }
     )
+    record_type = "materialize" if link_mode == "inline" else "retarget"
     for link in links:
         records.append(
             {
                 "phase": phase,
-                "type": "retarget",
+                "type": record_type,
                 "link": str(link),
                 "to": str(new_target),
+                "link_mode": link_mode,
+                "ts": ts,
+            }
+        )
+    with path.open("a", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
+def _append_relative_only_log(
+    path: Path, phase: str, infos: Iterable[SymlinkInfo]
+) -> None:
+    """Append retarget-only action records as JSON Lines."""
+
+    path = Path(path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ts = time.time()
+    records = []
+    for info in infos:
+        records.append(
+            {
+                "phase": phase,
+                "type": "retarget",
+                "link": str(info.source),
+                "to": str(info.target),
+                "link_mode": "relative-only",
                 "ts": ts,
             }
         )
@@ -111,7 +153,9 @@ def _append_json_log(
 
 def main(argv=None):
     default_data_root = Path.home() / "Developer" / "Data"
-    default_scan_roots = [str(Path.home())]
+    default_scan_roots = [
+        str(Path.home() / "Developer" / "Cloud" / "Dropbox" / "-Code-" / "Scripts")
+    ]
     argv = sys.argv[1:] if argv is None else argv
     args = _parse_args(argv)
 
@@ -157,9 +201,39 @@ def main(argv=None):
     if loaded_config.path:
         print(f"已加载配置文件：{loaded_config.path}")
 
-    print(f"SLM 已准备。Data 根：{data_root} | Dry-run：{args.dry_run}")
+    print(
+        f"SLM 已准备。Data 根：{data_root} | Dry-run：{args.dry_run} | 链接模式：{args.link_mode}"
+    )
 
     infos = scan_symlinks_pointing_into_data(scan_roots, data_root)
+
+    if args.relative:
+        if not infos:
+            print("未找到指向 Data 目录的符号链接。请检查扫描范围或目录。")
+            return 0
+        plan = rewrite_links_to_relative(infos, dry_run=args.dry_run)
+        print("计划 (relative-only):")
+        for line in plan:
+            print(f"  • {line}")
+        if args.log_json:
+            _append_relative_only_log(args.log_json, "preview", infos)
+        if args.dry_run:
+            proceed = questionary.confirm(
+                "执行上述操作（仅改写为相对路径）吗？", default=False
+            ).ask()
+            if not proceed:
+                print("已取消。")
+                return 0
+        try:
+            rewrite_links_to_relative(infos, dry_run=False)
+        except MigrationError as exc:
+            print(f"执行失败：{exc}")
+            return 2
+        if args.log_json:
+            _append_relative_only_log(args.log_json, "applied", infos)
+        print("完成。已将符号链接改写为相对路径（未移动目录）。")
+        return 0
+
     grouped = group_by_target_within_data(infos, data_root)
 
     if not grouped:
@@ -239,6 +313,7 @@ def main(argv=None):
             conflict_strategy=conflict_strategy,
             backup_path=backup_path,
             data_root=data_root,
+            link_mode=args.link_mode,
         )
     except MigrationError as e:
         print(f"校验失败：{e}")
@@ -260,6 +335,7 @@ def main(argv=None):
                 new_target,
                 links,
                 backup_entry=(new_target, backup_path) if backup_path else None,
+                link_mode=args.link_mode,
             )
         proceed = questionary.confirm("执行上述操作吗？", default=False).ask()
         if not proceed:
@@ -275,6 +351,7 @@ def main(argv=None):
                 conflict_strategy=conflict_strategy,
                 backup_path=backup_path,
                 data_root=data_root,
+                link_mode=args.link_mode,
             )
         except MigrationError as e:
             print(f"执行失败：{e}")
@@ -287,6 +364,7 @@ def main(argv=None):
                 new_target,
                 links,
                 backup_entry=(new_target, backup_path) if backup_path else None,
+                link_mode=args.link_mode,
             )
         # Final summary for new target after apply
         final_new = fast_tree_summary(new_target)

@@ -12,16 +12,18 @@
 - 进度（取自 docs/TASKS.md 顶层）：9/9（100%）
 - 当前周期：Cycle 1（见 docs/PLAN.md）
 - 数据写点：本项目不使用 data/ 目录（工具类项目）
-- 测试覆盖：4/4 通过 (pytest tests/)
+- 测试覆盖：9/9 通过 (pytest tests/)
 
 ---
 
 ## 功能概览（What it does）
-- 扫描给定扫描根（默认 `~`）下的符号链接，找出其“真实目标”位于 Data 根（默认 `~/Developer/Data`）的目录型链接。
+- 扫描给定扫描根（默认 `~/Developer/Cloud/Dropbox/-Code-/Scripts`）下的符号链接，找出其“真实目标”位于 Data 根（默认 `~/Developer/Data`）的目录型链接。
 - 将相同目标目录的所有符号链接分组并列成选单，让用户选定一个“被指向的目标目录”。
 - 交互式输入新的目标绝对路径，生成迁移计划（dry-run 默认开启）。
 - 执行“移动目录（跨卷自动回退 copytree+删除）→ 更新所有符号链接指向 → 结果验证”。
 - 提供快速目录树摘要与 JSON Lines 操作日志（`--log-json`）。
+  - 链接模式：默认输出相对符号链接；可选绝对符号链接或“inline”模式（不保留符号链接，直接在链接路径落盘目录）。
+  - 新增 `--relative` 模式：只改写已有符号链接为相对路径，不移动目录。
 
 ## 实现思路（How it works）
 - 扫描：`os.walk(followlinks=False)` + `Path.resolve(strict=True)` 检测目录型符号链接；以 `data_root` 作为包含判定。
@@ -33,7 +35,7 @@
 - 记录：当传入 `--log-json` 时，以 JSON Lines 形式分别记录 preview/applied 两阶段的 move/retarget 事件。
 
 ## 当前状态（State）
-- 已实现：扫描/分组、Questionary 交互、多步迁移、dry-run 与摘要、JSON 日志、冲突处理（Abort/Backup 策略）、配置文件加载（`~/.config/slm.yml`，CLI 优先）、测试套件（4 个测试，100% 通过）、README/USAGE 示例（含冲突/日志更新）。
+- 已实现：扫描/分组、Questionary 交互、多步迁移、dry-run 与摘要、JSON 日志、冲突处理（Abort/Backup 策略）、配置文件加载（`~/.config/slm.yml`，CLI 优先）、测试套件（9 个测试，100% 通过）、README/USAGE 示例（含冲突/日志/链接模式更新）。
 - 未实现/部分：CI 集成、自动化发布流程。
 
 ## 重大缺陷与风险（Critical Gaps）

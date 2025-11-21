@@ -19,8 +19,10 @@ slm  # 或使用更短的别名: lk
 
 默认行为：
 - Data root: `~/Developer/Data`
-- Scan roots: `~` （用户主目录，可通过配置或 CLI 覆盖）
+- Scan roots: `~/Developer/Cloud/Dropbox/-Code-/Scripts`（可通过配置或 CLI 覆盖）
 - Dry-run: 开启。CLI 会先展示迁移计划并在 `执行上述操作吗？` 时再次确认。
+- 链接模式：`relative`（默认创建相对路径符号链接，便于迁移）
+- 可选模式：`slm --relative` 用于“只改写为相对链接且不移动目录”。
 
 #### 自定义扫描范围
 
@@ -117,9 +119,14 @@ summary(current=files:42 bytes:1048576, new=files:12 bytes:4096)
 7. 确认后执行，工具会：
    - 根据冲突策略备份（如选择）
    - 移动目录到新位置（跨卷自动回退到 copytree + 删除）
-   - 更新所有符号链接指向新位置
-   - 验证符号链接（`Path.resolve(strict=True)` 必须指向新目标）
-   - 显示最终摘要 `summary(new=files:… bytes:…)`
+  - 更新所有符号链接指向新位置
+  - 验证符号链接（`Path.resolve(strict=True)` 必须指向新目标）
+  - 显示最终摘要 `summary(new=files:… bytes:…)`
+
+**链接模式提示**：
+- 相对链接（默认）：无需额外参数，所有新链接写为相对路径。
+- 绝对链接：添加 `--link-mode absolute`。
+- 回收/不使用符号链接：`--link-mode inline` 会在迁移后删除符号链接并在原位置落盘真实目录（多处链接时会产生拷贝）。
 
 ### 场景 2：使用 JSON 日志跟踪操作
 
@@ -147,15 +154,33 @@ JSON 日志格式示例（`ts` 为 Unix 时间戳浮点数）：
 {"phase": "applied", "type": "move", "from": "/path/old", "to": "/path/new", "ts": 1734559234.987}
 {"phase": "applied", "type": "retarget", "link": "/workspace/link1", "to": "/path/new", "ts": 1734559234.987}
 ```
+*使用 `--link-mode inline` 时，`type` 会改为 `materialize` 以反映“落盘真实目录”的操作。*
+
+### 场景 3：仅将绝对符号链接改写为相对路径
+
+**需求**：不移动目录，仅把扫描到的符号链接改成相对路径，方便项目复制/迁移。
+
+```bash
+slm --relative
+# 或 lk --relative
+```
+
+行为：
+- 按默认/指定 scan roots 扫描所有指向 Data 目录的符号链接。
+- 展示 dry-run 计划后确认（默认 dry-run 开启）。
+- 将所有相关链接改写为相对路径，目录位置保持不变。
+- 可搭配 `--log-json` 记录 retarget 操作，`link_mode` 会显示为 `relative-only`。
 
 ## 命令行选项
 
-```
+``` 
 slm [选项]   # 或使用别名: lk [选项]
 
 选项:
   --data-root PATH       Data 目录的根路径（默认: ~/Developer/Data）
-  --scan-roots PATH ...  扫描符号链接的根目录列表（默认: ~）
+  --scan-roots PATH ...  扫描符号链接的根目录列表（默认: ~/Developer/Cloud/Dropbox/-Code-/Scripts）
+  --link-mode MODE       链接模式: relative (默认) | absolute | inline（不使用符号链接）
+  --relative             仅改写为相对符号链接，不移动目标目录
   --dry-run              仅预览迁移计划（默认开启，用于兼容旧脚本）
   --log-json PATH        记录操作日志到 JSON Lines 文件
   -h, --help             显示帮助信息

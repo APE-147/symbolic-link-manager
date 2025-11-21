@@ -92,7 +92,8 @@ def test_migrate_with_backup_strategy(tmp_path):
     assert new_target.exists()
     assert (new_target / "payload.txt").read_text() == "payload"
     assert not current_target.exists()
-    assert Path(os.readlink(link_path)) == new_target
+    assert link_path.resolve() == new_target
+    assert not os.path.isabs(os.readlink(link_path))
     assert link_path.resolve() == new_target
 
 
@@ -141,6 +142,7 @@ def test_main_dry_run_and_apply(tmp_path, monkeypatch, capsys):
     assert (new_target / "data.txt").read_text() == "123"
     assert not target.exists()
     assert link_path.resolve() == new_target
+    assert not os.path.isabs(os.readlink(link_path))
 
 
 def test_migrate_with_relative_path_resolved_against_data_root(tmp_path):
@@ -218,3 +220,74 @@ def test_exit_choice_returns_string_without_crash(tmp_path, monkeypatch, capsys)
 
     assert exit_code == 0
     assert "已取消" in out
+
+
+def test_inline_mode_materializes_links(tmp_path):
+    """Inline mode removes symlinks and materializes directories in place."""
+    data_root = tmp_path / "Data"
+    current_target = data_root / "shared"
+    current_target.mkdir(parents=True)
+    (current_target / "file.txt").write_text("inline")
+
+    link_a = tmp_path / "projectA" / "shared"
+    link_a.parent.mkdir(parents=True)
+    link_a.symlink_to(current_target)
+
+    link_b = tmp_path / "projectB" / "shared"
+    link_b.parent.mkdir(parents=True)
+    link_b.symlink_to(current_target)
+
+    new_target = data_root / "materialized"
+
+    migrate_target_and_update_links(
+        current_target,
+        new_target,
+        [link_a, link_b],
+        dry_run=False,
+        data_root=data_root,
+        link_mode="inline",
+    )
+
+    assert not current_target.exists()
+    assert new_target.exists()
+    assert (new_target / "file.txt").read_text() == "inline"
+
+    for path in (link_a, link_b):
+        assert path.exists()
+        assert not path.is_symlink()
+        assert (path / "file.txt").read_text() == "inline"
+
+
+def test_relative_only_mode_rewrites_symlinks(tmp_path, monkeypatch, capsys):
+    """Relative-only mode rewrites existing links without moving targets."""
+    data_root = tmp_path / "Data"
+    target = data_root / "proj"
+    target.mkdir(parents=True)
+    (target / "f.txt").write_text("data")
+
+    link_root = tmp_path / "links"
+    link_root.mkdir()
+    link_a = link_root / "a"
+    link_a.symlink_to(target)
+    link_b = link_root / "nested" / "b"
+    link_b.parent.mkdir(parents=True)
+    link_b.symlink_to(target)
+
+    monkeypatch.setattr(cli, "load_config", lambda: LoadedConfig(data={}, path=None))
+
+    def fake_confirm(*args, **kwargs):
+        return DummyPrompt(True)
+
+    monkeypatch.setattr(cli.questionary, "confirm", fake_confirm)
+
+    exit_code = cli.main(
+        ["--data-root", str(data_root), "--scan-roots", str(link_root), "--relative"]
+    )
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "relative-only" in out
+    assert target.exists()
+    for link in (link_a, link_b):
+        assert link.resolve() == target
+        assert not os.path.isabs(os.readlink(link))
