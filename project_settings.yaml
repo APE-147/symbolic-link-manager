@@ -1,0 +1,35 @@
+project:
+  name: symbolic_link_changer
+  slug: slm
+  cycle: 1
+  owner: codex
+structure_contract:
+  root_allowed:
+    - AGENTS.md
+    - README.md
+    - project_settings.yaml
+    - pyproject.toml
+    - uv.lock
+    - data/
+    - docs/
+    - src/
+    - tests/
+    - backup/
+    - .env
+    - .env.example
+    - .gitignore
+    - .specstory
+    - .cursorindexingignore
+    - .vscode/
+  docs_core:
+    - docs/REQUIRES.md
+    - docs/PLAN.md
+    - docs/TASKS.md
+  docs_archive: backup/docs
+  data_symlink: data -> /Users/niceday/Developer/Data/symbolic_link_changer-data
+quality_gates:
+  tests: uv run pytest tests
+  lint: null
+notes: |
+  Aligns the project with the project-structure framework and documents the
+  guaranteed root layout plus the dedicated external data directory.

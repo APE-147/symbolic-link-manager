@@ -1,0 +1,161 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Project-specific
+data/
+data
+*.log
+*.jsonl
+
+# Security - Keys and Credentials
+*.pem
+*.key
+id_rsa
+id_rsa.*
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.gpg
+*.asc
+secrets.*
+*.crt
+*.der
+*.kdbx
+
+# Database files
+*.sqlite
+*.db
+*.mdb
+
+# Backup and temporary directories
+dumps/
+backups/
+exports/
+.cache/
+
+# IDE and Editor
+**/.vscode/
+**/.idea/
+**/.specstory/
+**/.history/
+**/.cursorindexingignore
+
+# Environment
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Python
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/.ipynb_checkpoints/
+*.pyc
+*.pyo
+*.pyd
+
+# Data and Backups
+**/data/
+**/backup/
+**/backups/
+
+# Temporary Files
+*.tmp
+*.temp
+*.log
+*.cache
+*.swp
+*.swo
+*~
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+**/._*
+
+# Windows
+**/Thumbs.db
+**/Desktop.ini
+**/*.lnk
+**/*.symlink
+
+# Dropbox
+**/.dropbox
+**/.dropbox.cache
+
+# Syncthing
+**/.stfolder
+**/.stignore
+**/.stversions
+
+# Claude
+**/.claude
+**/.sync

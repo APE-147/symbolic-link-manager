@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slm"
+version = "0.1.0"
+description = "Questionary-based symlink target migration tool"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "niceday"}]
+dependencies = [
+  "questionary>=2.0.1,<3.0",
+  "PyYAML>=6.0",
+]
+
+[project.scripts]
+slm = "slm.cli:main"
+lk = "slm.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
