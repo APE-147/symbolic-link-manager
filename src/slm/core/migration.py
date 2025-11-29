@@ -57,6 +57,78 @@ def _safe_move_dir(old: Path, new: Path) -> None:
             raise
 
 
+def move_and_delete_links(
+    current_target: Path,
+    new_target: Path,
+    links: Iterable[Path],
+    dry_run: bool = True,
+    conflict_strategy: str = "abort",
+    backup_path: Optional[Path] = None,
+    data_root: Optional[Path] = None,
+) -> List[str]:
+    """Move data to a new location and delete all associated symlinks."""
+
+    actions: List[str] = []
+    current_target = current_target.resolve()
+    new_target = Path(new_target).expanduser()
+    links_list = list(links)
+
+    if not new_target.is_absolute():
+        if data_root:
+            new_target = (Path(data_root).resolve() / new_target).resolve()
+        else:
+            new_target = new_target.resolve()
+    else:
+        new_target = new_target.resolve()
+
+    if current_target == new_target:
+        raise MigrationError("New target equals current target.")
+    if str(new_target).startswith(str(current_target) + os.sep):
+        raise MigrationError("New target cannot be inside current target.")
+
+    backup_in_use: Optional[Path] = None
+    if new_target.exists():
+        if conflict_strategy == "abort":
+            raise MigrationError(f"Destination exists: {new_target}")
+        if conflict_strategy != "backup":
+            raise MigrationError(f"Unsupported conflict strategy: {conflict_strategy}")
+        backup_in_use = backup_path or _derive_backup_path(new_target)
+        actions.append(f"Backup: {new_target} -> {backup_in_use}")
+
+    actions.append(f"Move: {current_target} -> {new_target}")
+    for link in links_list:
+        actions.append(f"Delete link: {link}")
+
+    if dry_run:
+        return actions
+
+    if backup_in_use:
+        if backup_in_use.exists():
+            raise MigrationError(f"Backup destination exists: {backup_in_use}")
+        try:
+            new_target.rename(backup_in_use)
+        except OSError as exc:
+            raise MigrationError(f"Failed to backup existing destination: {exc}") from exc
+
+    _safe_move_dir(current_target, new_target)
+
+    for link in links_list:
+        if not link.exists():
+            continue
+        if not link.is_symlink():
+            raise MigrationError(f"Not a symlink: {link}")
+        link.unlink()
+
+    if not new_target.exists():
+        raise MigrationError(f"Move failed, missing: {new_target}")
+
+    for link in links_list:
+        if link.exists():
+            raise MigrationError(f"Link still exists after deletion: {link}")
+
+    return actions
+
+
 def _derive_backup_path(target: Path, now: Optional[float] = None) -> Path:
     timestamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(now or time.time()))
     base = target.with_name(f"{target.name}~{timestamp}")
@@ -265,6 +337,7 @@ __all__ = [
     "_safe_move_dir",
     "_derive_backup_path",
     "_materialize_link",
+    "move_and_delete_links",
     "migrate_target_and_update_links",
     "rewrite_links_to_relative",
     "materialize_links_in_place",

@@ -12,7 +12,7 @@
 - 进度（取自 docs/TASKS.md 顶层）：9/9（100%）
 - 当前周期：Cycle 1（见 docs/PLAN.md）
 - 数据写点：本项目不使用 data/ 目录（工具类项目）
-- 测试覆盖：9/9 通过 (pytest tests/)
+- 测试覆盖：11/11 通过 (pytest tests/)
 
 ---
 
@@ -22,8 +22,9 @@
 - 交互式输入新的目标绝对路径，生成迁移计划（dry-run 默认开启）。
 - 执行“移动目录（跨卷自动回退 copytree+删除）→ 更新所有符号链接指向 → 结果验证”。
 - 提供快速目录树摘要与 JSON Lines 操作日志（`--log-json`）。
-  - 链接模式：默认输出相对符号链接；可选绝对符号链接或“inline”模式（不保留符号链接，直接在链接路径落盘目录）。
+  - 链接模式：默认输出相对符号链接；可选绝对符号链接或"inline"模式（不保留符号链接，直接在链接路径落盘目录）。
   - 新增 `--relative` 模式：只改写已有符号链接为相对路径，不移动目录。
+- 交互式操作菜单：省略 `--link-mode` 时弹出操作选择（本地化/相对链接/绝对链接/仅移动/退出）。
 
 ## 实现思路（How it works）
 - 扫描：`os.walk(followlinks=False)` + `Path.resolve(strict=True)` 检测目录型符号链接；以 `data_root` 作为包含判定。
@@ -129,7 +130,27 @@
 ---
 
 ## Run Log
-- 2025-10-19 [最新]：**[Security: Privacy hardening & Git hygiene]** 完成隐私保护与仓库安全加固
+- 2025-10-20 [最新]：**[Feature: Interactive operation menu]** 实现交互式操作选择菜单
+  - 命令：codex exec "implement interactive operation menu"
+  - 退出码：0（成功）
+  - 变更摘要：
+    * **交互式菜单**：当省略 `--link-mode` 参数时自动显示操作选择菜单
+      - 本地化（Materialize）：复制数据到链接位置，保留原数据
+      - 迁移 + 相对路径链接：移动数据并创建相对符号链接
+      - 迁移 + 绝对路径链接：移动数据并创建绝对符号链接
+      - 仅移动（Move Only）：移动数据并删除所有符号链接
+      - 退出：取消操作
+    * **新函数 `move_and_delete_links()`**：移动数据目录并删除所有关联符号链接
+    * **CLI 变更**：`--link-mode` 默认值从 "relative" 改为 None（触发交互菜单）
+    * **向后兼容**：命令行显式指定 `--link-mode` 时跳过菜单，直接执行
+  - 测试：11/11 通过（新增 test_move_only_operation_via_menu）
+  - 文件变更：
+    - src/slm/cli.py - 添加交互菜单逻辑
+    - src/slm/core/migration.py - 添加 move_and_delete_links() 函数
+    - src/slm/core/__init__.py - 导出新函数
+    - tests/test_cli.py - 新增测试用例
+  - 证据：pytest tests/ (11 passed)
+- 2025-10-19：**[Security: Privacy hardening & Git hygiene]** 完成隐私保护与仓库安全加固
   - 命令：手动执行（Claude Code + codex hybrid approach）
   - 退出码：0（成功）
   - 变更摘要：

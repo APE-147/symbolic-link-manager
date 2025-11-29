@@ -24,6 +24,7 @@ from .core import (
     fast_tree_summary,
     format_summary_pair,
     group_by_target_within_data,
+    move_and_delete_links,
     materialize_links_in_place,
     migrate_target_and_update_links,
     rewrite_links_to_relative,
@@ -50,8 +51,8 @@ def _parse_args(argv):
     p.add_argument(
         "--link-mode",
         choices=["relative", "absolute", "inline"],
-        default="relative",
-        help="How to handle links: relative symlinks (default), absolute symlinks, or inline without symlinks",
+        default=None,
+        help="How to handle links: relative/absolute symlinks or inline copies; omit to choose interactively",
     )
     p.add_argument(
         "--relative",
@@ -119,6 +120,54 @@ def _append_json_log(
                 "link": str(link),
                 "to": str(new_target),
                 "link_mode": link_mode,
+                "ts": ts,
+            }
+        )
+    with path.open("a", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
+def _append_move_only_log(
+    path: Path,
+    phase: str,
+    current_target: Path,
+    new_target: Path,
+    links: Iterable[Path],
+    backup_entry: Optional[Tuple[Path, Path]] = None,
+) -> None:
+    """Append move-only action records (move + unlink) as JSON Lines."""
+
+    path = Path(path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ts = time.time()
+    records = []
+    if backup_entry:
+        records.append(
+            {
+                "phase": phase,
+                "type": "backup",
+                "from": str(backup_entry[0]),
+                "to": str(backup_entry[1]),
+                "ts": ts,
+            }
+        )
+    records.append(
+        {
+            "phase": phase,
+            "type": "move",
+            "from": str(current_target),
+            "to": str(new_target),
+            "link_mode": "move-only",
+            "ts": ts,
+        }
+    )
+    for link in links:
+        records.append(
+            {
+                "phase": phase,
+                "type": "unlink",
+                "link": str(link),
                 "ts": ts,
             }
         )
@@ -230,8 +279,9 @@ def main(argv=None):
     if loaded_config.path:
         print(f"已加载配置文件：{loaded_config.path}")
 
+    link_mode_label = args.link_mode or "interactive"
     print(
-        f"SLM 已准备。Data 根：{data_root} | Dry-run：{args.dry_run} | 链接模式：{args.link_mode}"
+        f"SLM 已准备。Data 根：{data_root} | Dry-run：{args.dry_run} | 链接模式：{link_mode_label}"
     )
 
     infos = scan_symlinks_pointing_into_data(scan_roots, data_root)
@@ -298,8 +348,39 @@ def main(argv=None):
     display_links = "\n".join(f"- {p}" for p in links)
     print(f"以下符号链接指向该目录:\n{display_links}")
 
-    # Inline mode: materialize links in place (copy data, preserve original)
-    if args.link_mode == "inline":
+    operation_kind = None
+    if args.link_mode is None:
+        operation_choice = questionary.select(
+            "选择操作类型：",
+            choices=[
+                questionary.Choice(
+                    title="本地化（Materialize）：复制数据到链接位置，保留原数据",
+                    value="materialize",
+                ),
+                questionary.Choice(
+                    title="迁移 + 相对路径链接：移动数据并创建相对符号链接",
+                    value="relative",
+                ),
+                questionary.Choice(
+                    title="迁移 + 绝对路径链接：移动数据并创建绝对符号链接",
+                    value="absolute",
+                ),
+                questionary.Choice(
+                    title="仅移动（Move Only）：移动数据并删除所有符号链接",
+                    value="move-only",
+                ),
+                questionary.Choice(title="退出", value="exit"),
+            ],
+        ).ask()
+        if operation_choice in (None, "exit"):
+            print("已取消。")
+            return 0
+        operation_kind = operation_choice
+    else:
+        operation_kind = "materialize" if args.link_mode == "inline" else args.link_mode
+
+    # Materialize: copy data to link locations, preserve original
+    if operation_kind == "materialize":
         curr_summary = fast_tree_summary(selected_target)
         plan = materialize_links_in_place(selected_target, links, dry_run=True)
         print("计划 (inline/materialize):")
@@ -323,7 +404,7 @@ def main(argv=None):
         print("完成。已将符号链接替换为数据副本（原数据保留）。")
         return 0
 
-    # Non-inline modes: ask for new target path
+    # Operations requiring a new target path
     default_new = str(selected_target)
     new_path_str = questionary.text(
         "输入新的目标绝对路径:", default=default_new
@@ -360,16 +441,27 @@ def main(argv=None):
         backup_path = backup_candidate
 
     try:
-        plan = migrate_target_and_update_links(
-            selected_target,
-            new_target,
-            links,
-            dry_run=args.dry_run,
-            conflict_strategy=conflict_strategy,
-            backup_path=backup_path,
-            data_root=data_root,
-            link_mode=args.link_mode,
-        )
+        if operation_kind == "move-only":
+            plan = move_and_delete_links(
+                selected_target,
+                new_target,
+                links,
+                dry_run=args.dry_run,
+                conflict_strategy=conflict_strategy,
+                backup_path=backup_path,
+                data_root=data_root,
+            )
+        else:
+            plan = migrate_target_and_update_links(
+                selected_target,
+                new_target,
+                links,
+                dry_run=args.dry_run,
+                conflict_strategy=conflict_strategy,
+                backup_path=backup_path,
+                data_root=data_root,
+                link_mode=operation_kind,
+            )
     except MigrationError as e:
         print(f"校验失败：{e}")
         return 2
@@ -383,44 +475,75 @@ def main(argv=None):
         new_summary = fast_tree_summary(new_target) if new_target.exists() else (0, 0)
         print(format_summary_pair(curr_summary, new_summary))
         if args.log_json:
-            _append_json_log(
-                args.log_json,
-                "preview",
-                selected_target,
-                new_target,
-                links,
-                backup_entry=(new_target, backup_path) if backup_path else None,
-                link_mode=args.link_mode,
-            )
+            if operation_kind == "move-only":
+                _append_move_only_log(
+                    args.log_json,
+                    "preview",
+                    selected_target,
+                    new_target,
+                    links,
+                    backup_entry=(new_target, backup_path) if backup_path else None,
+                )
+            else:
+                _append_json_log(
+                    args.log_json,
+                    "preview",
+                    selected_target,
+                    new_target,
+                    links,
+                    backup_entry=(new_target, backup_path) if backup_path else None,
+                    link_mode=operation_kind,
+                )
         proceed = questionary.confirm("执行上述操作吗？", default=False).ask()
         if not proceed:
             print("已取消。")
             return 0
         # execute for real after confirmation
         try:
-            migrate_target_and_update_links(
-                selected_target,
-                new_target,
-                links,
-                dry_run=False,
-                conflict_strategy=conflict_strategy,
-                backup_path=backup_path,
-                data_root=data_root,
-                link_mode=args.link_mode,
-            )
+            if operation_kind == "move-only":
+                move_and_delete_links(
+                    selected_target,
+                    new_target,
+                    links,
+                    dry_run=False,
+                    conflict_strategy=conflict_strategy,
+                    backup_path=backup_path,
+                    data_root=data_root,
+                )
+            else:
+                migrate_target_and_update_links(
+                    selected_target,
+                    new_target,
+                    links,
+                    dry_run=False,
+                    conflict_strategy=conflict_strategy,
+                    backup_path=backup_path,
+                    data_root=data_root,
+                    link_mode=operation_kind,
+                )
         except MigrationError as e:
             print(f"执行失败：{e}")
             return 2
         if args.log_json:
-            _append_json_log(
-                args.log_json,
-                "applied",
-                selected_target,
-                new_target,
-                links,
-                backup_entry=(new_target, backup_path) if backup_path else None,
-                link_mode=args.link_mode,
-            )
+            if operation_kind == "move-only":
+                _append_move_only_log(
+                    args.log_json,
+                    "applied",
+                    selected_target,
+                    new_target,
+                    links,
+                    backup_entry=(new_target, backup_path) if backup_path else None,
+                )
+            else:
+                _append_json_log(
+                    args.log_json,
+                    "applied",
+                    selected_target,
+                    new_target,
+                    links,
+                    backup_entry=(new_target, backup_path) if backup_path else None,
+                    link_mode=operation_kind,
+                )
         # Final summary for new target after apply
         final_new = fast_tree_summary(new_target)
         print(f"summary(new=files:{final_new[0]} bytes:{final_new[1]})")
@@ -429,7 +552,10 @@ def main(argv=None):
         final_new = fast_tree_summary(new_target)
         print(f"summary(new=files:{final_new[0]} bytes:{final_new[1]})")
 
-    print("完成。已验证符号链接指向新目标。")
+    if operation_kind == "move-only":
+        print("完成。已移动目录并删除关联符号链接。")
+    else:
+        print("完成。已验证符号链接指向新目标。")
     return 0
 
 

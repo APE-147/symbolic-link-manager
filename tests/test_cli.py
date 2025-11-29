@@ -131,7 +131,14 @@ def test_main_dry_run_and_apply(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli.questionary, "text", fake_text)
     monkeypatch.setattr(cli.questionary, "confirm", fake_confirm)
 
-    exit_code = cli.main(["--data-root", str(data_root), "--scan-roots", str(link_root)])
+    exit_code = cli.main([
+        "--data-root",
+        str(data_root),
+        "--scan-roots",
+        str(link_root),
+        "--link-mode",
+        "relative",
+    ])
     out = capsys.readouterr().out
 
     assert exit_code == 0
@@ -143,6 +150,50 @@ def test_main_dry_run_and_apply(tmp_path, monkeypatch, capsys):
     assert not target.exists()
     assert link_path.resolve() == new_target
     assert not os.path.isabs(os.readlink(link_path))
+
+
+def test_move_only_operation_via_menu(tmp_path, monkeypatch, capsys):
+    data_root = tmp_path / "Developer" / "Data"
+    current_target = data_root / "dataset"
+    current_target.mkdir(parents=True)
+    (current_target / "payload.txt").write_text("payload")
+
+    link_root = tmp_path / "links"
+    link_root.mkdir()
+    link_path = link_root / "ds"
+    link_path.symlink_to(current_target)
+
+    new_target = tmp_path / "migrated" / "dataset"
+
+    select_answers = [current_target, "move-only"]
+    text_answers = [str(new_target)]
+    confirm_answers = [True]
+
+    monkeypatch.setattr(cli, "load_config", lambda: LoadedConfig(data={}, path=None))
+
+    def fake_select(*args, **kwargs):
+        return DummyPrompt(select_answers.pop(0))
+
+    def fake_text(*args, **kwargs):
+        return DummyPrompt(text_answers.pop(0))
+
+    def fake_confirm(*args, **kwargs):
+        return DummyPrompt(confirm_answers.pop(0))
+
+    monkeypatch.setattr(cli.questionary, "select", fake_select)
+    monkeypatch.setattr(cli.questionary, "text", fake_text)
+    monkeypatch.setattr(cli.questionary, "confirm", fake_confirm)
+
+    exit_code = cli.main(["--data-root", str(data_root), "--scan-roots", str(link_root)])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "计划 (dry-run)" in out
+    assert "Delete link" in out
+    assert not link_path.exists()
+    assert new_target.exists()
+    assert (new_target / "payload.txt").read_text() == "payload"
+    assert not current_target.exists()
 
 
 def test_migrate_with_relative_path_resolved_against_data_root(tmp_path):
