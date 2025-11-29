@@ -291,3 +291,57 @@ def test_relative_only_mode_rewrites_symlinks(tmp_path, monkeypatch, capsys):
     for link in (link_a, link_b):
         assert link.resolve() == target
         assert not os.path.isabs(os.readlink(link))
+
+
+def test_cli_inline_mode_preserves_original_data(tmp_path, monkeypatch, capsys):
+    """CLI inline mode copies data to link locations while preserving original."""
+    data_root = tmp_path / "Data"
+    target = data_root / "shared_data"
+    target.mkdir(parents=True)
+    (target / "file.txt").write_text("original data")
+
+    link_root = tmp_path / "projects"
+    link_root.mkdir()
+    link_a = link_root / "projectA" / "data"
+    link_a.parent.mkdir(parents=True)
+    link_a.symlink_to(target)
+
+    link_b = link_root / "projectB" / "data"
+    link_b.parent.mkdir(parents=True)
+    link_b.symlink_to(target)
+
+    monkeypatch.setattr(cli, "load_config", lambda: LoadedConfig(data={}, path=None))
+
+    select_answers = [target]
+    confirm_answers = [True]
+
+    def fake_select(*args, **kwargs):
+        return DummyPrompt(select_answers.pop(0))
+
+    def fake_confirm(*args, **kwargs):
+        return DummyPrompt(confirm_answers.pop(0))
+
+    monkeypatch.setattr(cli.questionary, "select", fake_select)
+    monkeypatch.setattr(cli.questionary, "confirm", fake_confirm)
+
+    exit_code = cli.main([
+        "--data-root", str(data_root),
+        "--scan-roots", str(link_root),
+        "--link-mode", "inline"
+    ])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "inline/materialize" in out
+    assert "原数据保留" in out
+
+    # Original data should still exist (key difference from old behavior)
+    assert target.exists()
+    assert (target / "file.txt").read_text() == "original data"
+
+    # Links should be replaced with real directories (copies)
+    for link in (link_a, link_b):
+        assert link.exists()
+        assert not link.is_symlink()
+        assert link.is_dir()
+        assert (link / "file.txt").read_text() == "original data"

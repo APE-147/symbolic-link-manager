@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import time
+import uuid
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -12,6 +13,27 @@ from .scanner import SymlinkInfo
 
 class MigrationError(RuntimeError):
     pass
+
+
+def _materialize_link(source: Path, link: Path) -> None:
+    """Atomically replace a symlink with a copy of source data.
+
+    Uses a temp directory + rename strategy to ensure atomicity.
+    The source data is preserved (not moved).
+    """
+    if not link.is_symlink():
+        raise MigrationError(f"Not a symlink: {link}")
+
+    temp_dir = link.parent / f".{link.name}.slm_tmp_{uuid.uuid4().hex[:8]}"
+
+    try:
+        shutil.copytree(source, temp_dir, symlinks=True)
+        link.unlink()
+        temp_dir.rename(link)
+    except Exception as e:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        raise MigrationError(f"Failed to materialize {link}: {e}") from e
 
 
 def _safe_move_dir(old: Path, new: Path) -> None:
@@ -194,10 +216,56 @@ def rewrite_links_to_relative(
     return actions
 
 
+def materialize_links_in_place(
+    source_target: Path,
+    links: Iterable[Path],
+    dry_run: bool = True,
+) -> List[str]:
+    """Replace symlinks with copies of source data, preserving the original.
+
+    This is the non-destructive "inline" mode: source data stays in place,
+    and each symlink is replaced with a full copy of the data.
+
+    Args:
+        source_target: The directory that symlinks currently point to (preserved).
+        links: Symlinks to materialize.
+        dry_run: If True, only return planned actions without executing.
+
+    Returns:
+        List of action descriptions.
+    """
+    actions: List[str] = []
+    source_target = source_target.resolve()
+    links_list = list(links)
+
+    for link in links_list:
+        actions.append(f"Materialize: {link} <= copy from {source_target}")
+
+    if dry_run:
+        return actions
+
+    for link in links_list:
+        _materialize_link(source_target, link)
+
+    if not source_target.exists():
+        raise MigrationError(f"Source unexpectedly missing after materialize: {source_target}")
+    for link in links_list:
+        if not link.exists():
+            raise MigrationError(f"Materialized path missing: {link}")
+        if link.is_symlink():
+            raise MigrationError(f"Materialized path still a symlink: {link}")
+        if not link.is_dir():
+            raise MigrationError(f"Materialized path is not a directory: {link}")
+
+    return actions
+
+
 __all__ = [
     "MigrationError",
     "_safe_move_dir",
     "_derive_backup_path",
+    "_materialize_link",
     "migrate_target_and_update_links",
     "rewrite_links_to_relative",
+    "materialize_links_in_place",
 ]

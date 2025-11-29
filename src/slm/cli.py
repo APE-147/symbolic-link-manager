@@ -24,6 +24,7 @@ from .core import (
     fast_tree_summary,
     format_summary_pair,
     group_by_target_within_data,
+    materialize_links_in_place,
     migrate_target_and_update_links,
     rewrite_links_to_relative,
     SymlinkInfo,
@@ -151,6 +152,34 @@ def _append_relative_only_log(
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+def _append_materialize_log(
+    path: Path, phase: str, source_target: Path, links: Iterable[Path]
+) -> None:
+    """Append materialize action records as JSON Lines.
+
+    Records inline mode operations where source data is copied to link locations
+    without moving the original data.
+    """
+    path = Path(path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ts = time.time()
+    records = []
+    for link in links:
+        records.append(
+            {
+                "phase": phase,
+                "type": "materialize",
+                "link": str(link),
+                "source": str(source_target),
+                "link_mode": "inline",
+                "ts": ts,
+            }
+        )
+    with path.open("a", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
 def main(argv=None):
     default_data_root = Path.home() / "Developer" / "Data"
     default_scan_roots = [
@@ -269,6 +298,32 @@ def main(argv=None):
     display_links = "\n".join(f"- {p}" for p in links)
     print(f"以下符号链接指向该目录:\n{display_links}")
 
+    # Inline mode: materialize links in place (copy data, preserve original)
+    if args.link_mode == "inline":
+        curr_summary = fast_tree_summary(selected_target)
+        plan = materialize_links_in_place(selected_target, links, dry_run=True)
+        print("计划 (inline/materialize):")
+        for line in plan:
+            print(f"  • {line}")
+        print(f"源目录摘要：files={curr_summary[0]} bytes={curr_summary[1]}")
+        print("注意：原数据目录将保留，数据将被复制到各链接位置。")
+        if args.log_json:
+            _append_materialize_log(args.log_json, "preview", selected_target, links)
+        proceed = questionary.confirm("执行上述操作吗？", default=False).ask()
+        if not proceed:
+            print("已取消。")
+            return 0
+        try:
+            materialize_links_in_place(selected_target, links, dry_run=False)
+        except MigrationError as e:
+            print(f"执行失败：{e}")
+            return 2
+        if args.log_json:
+            _append_materialize_log(args.log_json, "applied", selected_target, links)
+        print("完成。已将符号链接替换为数据副本（原数据保留）。")
+        return 0
+
+    # Non-inline modes: ask for new target path
     default_new = str(selected_target)
     new_path_str = questionary.text(
         "输入新的目标绝对路径:", default=default_new
