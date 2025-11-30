@@ -1,14 +1,14 @@
 # PLAN
 
-> 每次运行在文件底部追加一个 Cycle（6–8 个问题 + 选项效果 + 进度）。
+> 每次运行在文件底部追加一个 Cycle（6–8 个问题 + 选项效果 + 进度）。所有设计决策均来源于 docs/qs/QS-1.md 中锁定的 [#Q1]–[#Q7] 以及 docs/REQUIRES.md 中的需求条目。
 
 ## Cycle 1 — 2025-10-18
 
 Progress
-- 来自 TASKS 顶层复选框：9/9（100%）
+- 来自 TASKS 顶层复选框：9/9（100%）（对应初始功能与文档任务，见 [#Q1]–[#Q2], [#Q5]–[#Q7]）
 - 计算依据：所有任务均已完成（含文档与示例更新）
 
-Decision Questions（以 Questionary 交互为核心）
+Decision Questions（以 Questionary 交互为核心，对应 [#Q1], [#Q5]–[#Q7]）
 1) 扫描范围来源？
    - 选项：固定为「/Users/username/Developer/Data」；CLI 参数传入；从配置文件读取（如 `~/.config/slm.yml`）。
    - 影响：固定路径实现最快但不灵活；CLI 最灵活；配置文件便于复用与团队共享。
@@ -53,7 +53,7 @@ Decision Questions（以 Questionary 交互为核心）
    - 影响：降低误操作风险，减少噪音，保证可重复性。
 需要 sudo 时显式失败并给出建议, 不需要忽略模式, 仅处理目录型符号链接
 
-建议默认值
+建议默认值（锁定于 [#Q1], [#Q5]–[#Q7]）
 - 扫描范围：可配置根目录，默认 `~` 与常用工作根（含 `/Users/username/Developer`）。
 - 交互流程：方案 A（以 Data 目录为中心）。
 - 迁移：先 dry-run，确认后执行"移动+更新符号链接+验证"，跨卷自动回退复制策略。
@@ -64,10 +64,10 @@ Decision Questions（以 Questionary 交互为核心）
 ## Cycle 2 — 2025-10-18 (路径解析修复)
 
 Progress
-- 来自 TASKS 顶层复选框：9/9（100%） + 1 个修复任务已完成
+- 来自 TASKS 顶层复选框：9/9（100%） + 1 个修复任务已完成（相对路径解析修复见 [#Q3]）
 - 计算依据：所有原有任务完成 + 相对路径解析修复已完成并测试通过
 
-Decision Questions（针对相对路径解析问题）
+Decision Questions（针对相对路径解析问题，对应 [#Q3]）
 1) 相对路径应相对于什么解析？
    - 选项 A：相对于当前工作目录（cwd）— 现有行为，导致用户错误
    - 选项 B：相对于 data_root — 符合用户预期，便于在 Data 目录内重组
@@ -105,9 +105,9 @@ Decision Questions（针对相对路径解析问题）
 
 ---
 
-## Cycle 3 — 2025-10-18 (设置 lk 默认配置并移除 slm 命令)  (@source: REQUIRES.md + 内置模板)
+## Cycle 3 — 2025-10-18 (设置 lk 默认配置并移除 slm 命令)  (@source: REQUIRES.md + 内置模板，对应 [#Q4])
 
-Progress: 100.00% (from TASKS.md, 计算依据: 9/9 顶层任务已完成)
+Progress: 0.00% (from TASKS.md, 计算依据: 0/6 Cycle 3 实施任务已完成；仅决策已在 [#Q4] 锁定)
 
 Decision Questions（针对默认配置设置与命令简化）
 

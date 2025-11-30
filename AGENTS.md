@@ -1,6 +1,6 @@
 # AGENTS.md — Symlink Target Migrator (slm)
 
-> 项目事实单一来源（SSOT）。记录功能、实现思路、当前状态、重大缺陷与下一步。最后更新：2025-10-18。
+> 项目事实单一来源（SSOT）。记录功能、实现思路、当前状态、重大缺陷与下一步。最后更新：2025-11-30。
 
 ---
 
@@ -9,7 +9,7 @@
 - 入口：`slm` / `lk`（均指向 `slm.cli:main`）｜运行环境：macOS，Python ≥3.9
 - 代码位置：`src/slm/`（核心：`cli.py`、`config.py`）
 - 文档骨架：`docs/{REQUIRES.md, PLAN.md, TASKS.md}`（合规）
-- 进度（取自 docs/TASKS.md 顶层）：9/9（100%）
+- 进度（取自 docs/TASKS.md 顶层）：10/10（100%）
 - 当前周期：Cycle 1（见 docs/PLAN.md）
 - 数据写点：本项目不使用 data/ 目录（工具类项目）
 - 测试覆盖：11/11 通过 (pytest tests/)
@@ -88,7 +88,7 @@
   * 说明：测试 backup path、冲突处理、备份迁移、完整流程
   * 测试命令：`pytest tests/` — 4/4 通过
   * 证据：2025-10-18 codex cycle 3（创建 tests/test_cli.py）
-- [ ] 文档与示例（README、更新 REQUIRES 与使用说明）
+- [x] 文档与示例（README、更新 REQUIRES 与使用说明）
   * 要求：更新 README 和 docs/USAGE_EXAMPLE.md
   * 说明：包含冲突处理和配置文件示例
   * 测试命令：检查文档完整性

@@ -1,0 +1,29 @@
+graph TD
+    classDef cli fill:#f9f,stroke:#333,stroke-width:2px
+    classDef svc fill:#ff9,stroke:#333,stroke-width:2px
+    classDef core fill:#9cf,stroke:#333,stroke-width:2px
+    classDef config fill:#ddd,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+
+    subgraph Presentation["Presentation Layer"]
+        CLI["cli.py<br/>(Entry Point)"]:::cli
+    end
+
+    subgraph Services["Service Layer"]
+        ConfigSvc["services/configuration.py<br/>(Config Orchestration)"]:::svc
+        ConfigLoad["config.py<br/>(YAML Loader)"]:::config
+    end
+
+    subgraph Core["Core Logic Domain"]
+        Scanner["core/scanner.py<br/>(Symlink Discovery)"]:::core
+        Migration["core/migration.py<br/>(Link Replacement)"]:::core
+        Summary["core/summary.py<br/>(Tree Summary)"]:::core
+    end
+
+    CLI --> ConfigLoad
+    CLI --> Scanner
+    CLI --> Migration
+    CLI --> Summary
+
+    ConfigSvc --> ConfigLoad
+    Scanner --> ConfigLoad
+    Migration --> Summary

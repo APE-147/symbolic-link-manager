@@ -2,6 +2,8 @@
 - Source: `/Users/ns/Developer/Cloud/Dropbox/-Code-/Scripts/service/manager/link-changer`
 - Generated: 2025-11-22 13:56:53 UTC
 
+> 注：本文件为 2025-11-22 的只读快照，目录结构与当时状态一致。自 2025-11-30 起，`docs/REPORTS.md` 已整理至 `docs/detail/REPORTS.md`，作为备份/研究类补充文档。
+
 ## Summary
 Directory: link-changer
 Files analyzed: 22
@@ -18,7 +20,6 @@ Estimated tokens: 25.8k
     ├── uv.lock
     ├── docs/
     │   ├── PLAN.md
-    │   ├── REPORTS.md
     │   ├── REQUIRES.md
     │   ├── SECURITY.md
     │   ├── TASKS.md
@@ -333,7 +334,7 @@ FILE: docs/PLAN.md
 
 
 ================================================
-FILE: docs/REPORTS.md
+FILE: docs/detail/REPORTS.md
 ================================================
 [Binary file]
 
