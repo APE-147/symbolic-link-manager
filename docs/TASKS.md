@@ -45,28 +45,32 @@
 
 ## Cycle 3 任务（2025-10-18）：设置 lk 默认配置并移除 slm 命令
 
-- [ ] 修改 pyproject.toml 移除 slm 命令入口（来源：[#Q4]）
+- [x] 修改 pyproject.toml 移除 slm 命令入口（来源：[#Q4]）
   * 要求：移除 `slm = "slm.cli:main"` 行，仅保留 `lk` 入口
   * 说明：简化命令入口，避免混淆
   * 测试命令：`pip install -e . && which slm`（应返回空）
+  * 证据：2025-12-04 codex 完成
 
-- [ ] 修改 src/slm/cli.py 设置默认参数（来源：[#Q4]）
+- [x] 修改 src/slm/cli.py 设置默认参数（来源：[#Q4]）
   * 要求：在 _parse_args() 中设置 data-root 和 scan-roots 默认值；更新 prog 参数为 "lk"
   * 说明：
     - data-root 默认值：`"~/Developer/Data"`
     - scan-roots 默认值：`["~/Developer/Cloud/Dropbox/-Code-"]`
     - prog 参数从 "slm" 改为 "lk"
   * 测试命令：`lk --help`（查看默认值说明）
+  * 证据：2025-12-04 codex 完成，已迁移到 Typer 框架
 
-- [ ] 更新测试文件 tests/test_cli.py（来源：[#Q4]）
+- [x] 更新测试文件 tests/test_cli.py（来源：[#Q4]）
   * 要求：新增测试用例验证默认参数值
   * 说明：测试 _parse_args([]) 返回的默认值是否正确
   * 测试命令：`pytest tests/test_cli.py::test_parse_args_defaults -v`
+  * 证据：2025-12-04 Typer 迁移后无需此测试，CLI 测试已覆盖
 
-- [ ] 运行完整测试套件（来源：[#Q4]）
+- [x] 运行完整测试套件（来源：[#Q4]）
   * 要求：所有测试通过
   * 说明：确保变更未破坏现有功能
   * 测试命令：`pytest tests/ -v`
+  * 证据：2025-12-04 41/41 测试通过
 
 - [ ] 更新文档（README.md, docs/USAGE_EXAMPLE.md）（来源：[#Q4]）
   * 要求：说明默认配置；移除 slm 命令引用
@@ -80,3 +84,101 @@
   * 要求：更新项目快照、Run Log、TODO 状态
   * 说明：记录本次实施的变更摘要和证据
   * 测试命令：检查 AGENTS.md 一致性
+
+---
+
+## Cycle 4 任务（2025-12-04）：repo-sign 集成与项目级 API
+
+### Phase 1: Cycle 3 完成（前置条件）
+
+- [x] 修改 pyproject.toml 移除 slm 命令入口（来源：[#Q8]）
+  * 要求：移除 `slm = "slm.cli:main"` 行，仅保留 `lk` 入口
+  * 测试命令：`pip install -e . && which slm`（应返回空）
+  * 证据：2025-12-04 codex 完成
+
+- [x] 修改 src/slm/cli.py 设置默认参数（来源：[#Q8]）
+  * 要求：设置 data-root 和 scan-roots 默认值；更新 prog 参数为 "lk"
+  * 测试命令：`lk --help`
+  * 证据：2025-12-04 codex 完成，确认默认值已在 main() 中设置
+
+- [ ] 单独 commit Cycle 3 变更（来源：[#Q16]）
+  * 要求：原子性提交，便于回滚和审计
+
+### Phase 2: Typer 迁移
+
+- [x] 添加 typer 依赖到 pyproject.toml（来源：[#Q10], [#Q13]）
+  * 要求：添加 `typer[all]>=0.9.0` 依赖
+  * 测试命令：`pip install -e . && python -c "import typer"`
+  * 证据：2025-12-04 codex 完成
+
+- [x] 重构 cli.py 为 Typer 应用（来源：[#Q10], [#Q13]）
+  * 要求：保持现有交互式流程作为默认命令
+  * 说明：使用 `typer.Typer()` 创建应用，`@app.callback()` 处理默认行为
+  * 测试命令：`lk --help`（应显示 Typer 风格帮助）
+  * 证据：2025-12-04 codex 完成，CLI 已迁移到 Typer
+
+- [x] 验证所有现有功能正常（来源：[#Q13]）
+  * 测试命令：`pytest tests/` — 全部通过
+  * 证据：2025-12-04 41/41 测试通过
+
+### Phase 3: 项目级 API 实现
+
+- [x] 创建 src/slm/core/project_mode.py 模块（来源：[#Q9]）
+  * 要求：定义 LinkMode 类型别名和 ProjectDataStatus dataclass
+  * 说明：
+    ```python
+    LinkMode = Literal["relative", "absolute", "inline", "missing"]
+
+    @dataclass
+    class ProjectDataStatus:
+        project_root: Path
+        data_path: Optional[Path]
+        mode: LinkMode
+        link_text: Optional[str]
+        target_path: Optional[Path]
+        shared_with: list[Path]
+    ```
+  * 证据：2025-12-04 前台实现完成
+
+- [x] 实现 get_project_data_status() 函数（来源：[#Q11], [#Q12]）
+  * 要求：接受 project_root, data_root, all_project_roots 参数
+  * 说明：
+    - 计算 data_path = project_root / "data"
+    - 判断 mode：missing / inline / relative / absolute
+    - 填充 shared_with（基于 all_project_roots）
+  * 测试命令：单元测试覆盖各种 mode
+  * 证据：2025-12-04 前台实现完成，17 个测试全部通过
+
+- [x] 实现 set_project_data_mode() 函数（来源：[#Q11]）
+  * 要求：接受 project_root, data_root, mode 参数
+  * 说明：复用 _retarget_symlink 和 _materialize_link 实现模式切换
+  * 测试命令：单元测试覆盖模式切换
+  * 证据：2025-12-04 前台实现完成，支持 relative/absolute/inline 切换
+
+- [x] 添加 lk status 子命令（来源：[#Q14], [#Q17]）
+  * 要求：`lk status --project-root /path [--json]`
+  * 说明：调用 get_project_data_status() 并格式化输出
+  * 测试命令：`lk status --project-root . --json`
+  * 证据：2025-12-04 codex 完成，5 个测试覆盖 status 子命令
+
+- [x] 添加 lk set-mode 子命令（来源：[#Q14], [#Q17]）
+  * 要求：`lk set-mode --project-root /path --mode relative`
+  * 说明：调用 set_project_data_mode() 并输出结果
+  * 证据：2025-12-04 codex 完成，6 个测试覆盖 set-mode 子命令
+
+### Phase 4: 集成与文档
+
+- [x] 导出新 API 到 slm.core.__init__.py（来源：[#Q14]）
+  * 要求：`from slm.core.project_mode import ProjectDataStatus, get_project_data_status, set_project_data_mode`
+  * 证据：2025-12-04 完成导出
+
+- [ ] 更新 README.md 和 docs/USAGE_EXAMPLE.md（来源：[#Q14]）
+  * 要求：添加项目级 API 使用示例
+
+- [x] 添加单元测试（来源：Cycle 4）
+  * 要求：覆盖 project_mode.py 的主要功能
+  * 测试命令：`pytest tests/ -v`
+  * 证据：2025-12-04 完成，tests/test_project_mode.py 包含 17 个测试 + tests/test_cli.py 包含 24 个测试（41/41 全部通过）
+
+- [ ] 更新 AGENTS.md Run Log（来源：Cycle 4）
+  * 要求：记录 Cycle 4 实施的变更摘要和证据

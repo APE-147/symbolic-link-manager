@@ -16,6 +16,13 @@ from .scanner import (
     scan_symlinks_pointing_into_data,
 )
 from .summary import fast_tree_summary, format_summary_pair
+from .project_mode import (
+    LinkMode,
+    ProjectDataStatus,
+    DATA_DIR_NAME,
+    get_project_data_status,
+    set_project_data_mode,
+)
 
 __all__ = [
     "MigrationError",
@@ -31,4 +38,9 @@ __all__ = [
     "migrate_target_and_update_links",
     "rewrite_links_to_relative",
     "scan_symlinks_pointing_into_data",
+    "LinkMode",
+    "ProjectDataStatus",
+    "DATA_DIR_NAME",
+    "get_project_data_status",
+    "set_project_data_mode",
 ]

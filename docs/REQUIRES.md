@@ -1,3 +1,45 @@
+## 最新需求（2025-12-04 Cycle 4：repo-sign 集成与项目级 API）
+
+**来源**：用户规划会话，详见 docs/qs/QS-2.md
+
+**需求描述**：
+1. link-changer 提供"项目级 API"，repo-sign 只需传入 `project_root` 就能获取该项目的 `data` 目录状态
+2. 支持查询和修改单个项目的 data 链接模式（relative/absolute/inline/missing）
+3. CLI 框架从 argparse 迁移到 Typer（与 repo-sign 统一）
+4. 新增 `lk status` 和 `lk set-mode` 子命令
+
+**应用场景**：
+- repo-sign 的 Action Menu 中显示当前项目的 data 链接状态
+- repo-sign 触发"切换 relative/absolute/inline"时调用 link-changer API
+- 命令行脚本查询项目 data 状态
+
+**技术实现**：
+- 新增 `src/slm/core/project_mode.py` 模块
+- 新增 `ProjectDataStatus` dataclass
+- 新增 `get_project_data_status(project_root, data_root, all_project_roots)` 函数
+- 新增 `set_project_data_mode(project_root, data_root, mode)` 函数
+- CLI 迁移到 Typer，保持现有交互式流程作为默认命令
+
+**验收标准**：
+- `lk status --project-root /path/to/project --json` 输出项目 data 状态
+- `lk set-mode --project-root /path/to/project --mode relative` 设置链接模式
+- repo-sign 可通过 `from slm.core.project_mode import get_project_data_status` 调用
+- 所有现有测试通过
+- 新增测试覆盖 project_mode.py
+
+---
+
+## 待办需求（未实现）
+
+符号链接内的符号链接进行维护
+- 真实源映射
+- 部分链接替换
+- 返回日志部分内容需要反映真实链接情况
+  - 不同颜色
+
+---
+
+
 ## 最新需求（2025-10-18 Cycle 3：设置 lk 默认配置并移除 slm 命令）
 
 **来源**：用户反馈

@@ -348,3 +348,46 @@ Q7. 文档更新范围？
   4. 可测试性：添加单元测试保证正确性
   5. 可维护性：清晰的文档和代码一致性
   6. 符合规范：遵循 codex-feature agent 的文档更新要求
+
+---
+
+## Cycle 4 — 2025-12-04 (repo-sign 集成与项目级 API)
+
+Progress: 0.00% (from TASKS.md, 计算依据: 0/12 Cycle 4 实施任务已完成；决策已在 [#Q8]-[#Q18] 锁定)
+
+Decision Questions（针对 repo-sign 集成，对应 [#Q8]-[#Q18]，详见 docs/qs/QS-2.md）
+
+**核心决策摘要**：
+1. **任务优先级 [#Q8]**：先完成 Cycle 3，单独 commit，再开发新功能
+2. **模块位置 [#Q9]**：`src/slm/core/project_mode.py`
+3. **CLI 框架 [#Q10]**：迁移到 Typer（与 repo-sign 统一）
+4. **API 风格 [#Q11]**：混合（dataclass + 函数）
+5. **shared_with 实现 [#Q12]**：调用方传入 all_project_roots 列表
+6. **Typer 迁移 [#Q13]**：完整迁移现有交互式流程
+7. **集成方式 [#Q14]**：两者都支持（库 API + CLI）
+8. **data 目录名 [#Q15]**：固定为 `data`
+9. **子命令命名 [#Q17]**：`lk status`
+
+**实施阶段**：
+- Phase 1: 完成 Cycle 3（独立 commit）
+- Phase 2: Typer 迁移
+- Phase 3: 项目级 API 实现（ProjectDataStatus, get_project_data_status, set_project_data_mode）
+- Phase 4: 集成与文档
+
+**新增数据结构**：
+```python
+@dataclass
+class ProjectDataStatus:
+    project_root: Path
+    data_path: Optional[Path]      # project_root / "data"
+    mode: LinkMode                 # "relative" | "absolute" | "inline" | "missing"
+    link_text: Optional[str]       # os.readlink(data_path) 原始字符串
+    target_path: Optional[Path]    # resolve() 后的真实目标路径
+    shared_with: list[Path]        # 其它项目也指向同一个 target
+```
+
+**新增 CLI 命令**：
+- `lk status --project-root /path [--json]`：查询项目 data 状态
+- `lk set-mode --project-root /path --mode relative|absolute|inline`：设置链接模式
+
+**来源**：用户交互问答 2025-12-04，docs/qs/QS-2.md

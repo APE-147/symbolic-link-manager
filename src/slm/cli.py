@@ -1,4 +1,3 @@
-import argparse
 import json
 import os
 import sys
@@ -10,6 +9,7 @@ try:
     import questionary
 except Exception:  # pragma: no cover
     questionary = None
+import typer
 
 from .config import (
     ConfigError,
@@ -30,48 +30,20 @@ from .core import (
     rewrite_links_to_relative,
     SymlinkInfo,
     scan_symlinks_pointing_into_data,
+    get_project_data_status,
+    set_project_data_mode,
+    LinkMode,
 )
 
-def _parse_args(argv):
-    p = argparse.ArgumentParser(
-        prog="slm",
-        description="符号链接目标迁移（Questionary 交互界面）",
-    )
-    p.add_argument(
-        "--data-root",
-        default=None,
-        help="Data directory containing real folders (default: ~/Developer/Data)",
-    )
-    p.add_argument(
-        "--scan-roots",
-        nargs="*",
-        default=None,
-        help="Roots to scan for symlink sources (default: ~/Developer/Cloud/Dropbox/-Code-/Scripts)",
-    )
-    p.add_argument(
-        "--link-mode",
-        choices=["relative", "absolute", "inline"],
-        default=None,
-        help="How to handle links: relative/absolute symlinks or inline copies; omit to choose interactively",
-    )
-    p.add_argument(
-        "--relative",
-        action="store_true",
-        help="Rewrite found symlinks to relative paths without moving their targets",
-    )
-    p.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=True,
-        help="Preview actions without making changes",
-    )
-    p.add_argument(
-        "--log-json",
-        dest="log_json",
-        default=None,
-        help="Append JSON Lines records of planned/applied actions to the given file",
-    )
-    return p.parse_args(argv)
+DEFAULT_DATA_ROOT = Path.home() / "Developer" / "Data"
+DEFAULT_SCAN_ROOTS = [
+    str(Path.home() / "Developer" / "Cloud" / "Dropbox" / "-Code-" / "Scripts")
+]
+
+app = typer.Typer(
+    add_completion=False,
+    help="符号链接目标迁移（Typer CLI + Questionary 交互界面）",
+)
 
 
 def _append_json_log(
@@ -229,17 +201,22 @@ def _append_materialize_log(
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
-def main(argv=None):
-    default_data_root = Path.home() / "Developer" / "Data"
-    default_scan_roots = [
-        str(Path.home() / "Developer" / "Cloud" / "Dropbox" / "-Code-" / "Scripts")
-    ]
-    argv = sys.argv[1:] if argv is None else argv
-    args = _parse_args(argv)
+def _run_interactive_flow(
+    data_root_option: Optional[str],
+    scan_roots_option: Optional[List[str]],
+    link_mode_option: Optional[str],
+    relative_only: bool,
+    dry_run: bool,
+    log_json: Optional[Path],
+) -> int:
+    """Run the original interactive flow (Questionary-based)."""
 
     if questionary is None:
         print("未安装 questionary，请先安装依赖。")
         return 2
+
+    if link_mode_option:
+        link_mode_option = link_mode_option.lower()
 
     try:
         loaded_config: LoadedConfig = load_config()
@@ -249,19 +226,19 @@ def main(argv=None):
 
     config_data: Dict[str, Any] = loaded_config.data
 
-    if args.data_root is not None:
-        data_root_str = args.data_root
+    if data_root_option is not None:
+        data_root_str = data_root_option
     else:
         data_root_str = config_data.get("data_root", None)
     if data_root_str is None:
-        data_root_str = str(default_data_root)
+        data_root_str = str(DEFAULT_DATA_ROOT)
     if not isinstance(data_root_str, str):
         print("配置错误：data_root 必须是字符串。")
         return 2
     data_root = Path(data_root_str).expanduser().resolve()
 
-    if args.scan_roots is not None:
-        scan_roots_raw = args.scan_roots
+    if scan_roots_option is not None:
+        scan_roots_raw = scan_roots_option
     else:
         try:
             scan_roots_raw = coerce_scan_roots(
@@ -272,31 +249,31 @@ def main(argv=None):
             print(f"配置错误：{exc}")
             return 2
         if not scan_roots_raw:
-            scan_roots_raw = default_scan_roots
+            scan_roots_raw = DEFAULT_SCAN_ROOTS
 
     scan_roots = [Path(p).expanduser() for p in scan_roots_raw]
 
     if loaded_config.path:
         print(f"已加载配置文件：{loaded_config.path}")
 
-    link_mode_label = args.link_mode or "interactive"
+    link_mode_label = link_mode_option or "interactive"
     print(
-        f"SLM 已准备。Data 根：{data_root} | Dry-run：{args.dry_run} | 链接模式：{link_mode_label}"
+        f"SLM 已准备。Data 根：{data_root} | Dry-run：{dry_run} | 链接模式：{link_mode_label}"
     )
 
     infos = scan_symlinks_pointing_into_data(scan_roots, data_root)
 
-    if args.relative:
+    if relative_only:
         if not infos:
             print("未找到指向 Data 目录的符号链接。请检查扫描范围或目录。")
             return 0
-        plan = rewrite_links_to_relative(infos, dry_run=args.dry_run)
+        plan = rewrite_links_to_relative(infos, dry_run=dry_run)
         print("计划 (relative-only):")
         for line in plan:
             print(f"  • {line}")
-        if args.log_json:
-            _append_relative_only_log(args.log_json, "preview", infos)
-        if args.dry_run:
+        if log_json:
+            _append_relative_only_log(log_json, "preview", infos)
+        if dry_run:
             proceed = questionary.confirm(
                 "执行上述操作（仅改写为相对路径）吗？", default=False
             ).ask()
@@ -308,8 +285,8 @@ def main(argv=None):
         except MigrationError as exc:
             print(f"执行失败：{exc}")
             return 2
-        if args.log_json:
-            _append_relative_only_log(args.log_json, "applied", infos)
+        if log_json:
+            _append_relative_only_log(log_json, "applied", infos)
         print("完成。已将符号链接改写为相对路径（未移动目录）。")
         return 0
 
@@ -349,7 +326,7 @@ def main(argv=None):
     print(f"以下符号链接指向该目录:\n{display_links}")
 
     operation_kind = None
-    if args.link_mode is None:
+    if link_mode_option is None:
         operation_choice = questionary.select(
             "选择操作类型：",
             choices=[
@@ -377,7 +354,7 @@ def main(argv=None):
             return 0
         operation_kind = operation_choice
     else:
-        operation_kind = "materialize" if args.link_mode == "inline" else args.link_mode
+        operation_kind = "materialize" if link_mode_option == "inline" else link_mode_option
 
     # Materialize: copy data to link locations, preserve original
     if operation_kind == "materialize":
@@ -388,8 +365,8 @@ def main(argv=None):
             print(f"  • {line}")
         print(f"源目录摘要：files={curr_summary[0]} bytes={curr_summary[1]}")
         print("注意：原数据目录将保留，数据将被复制到各链接位置。")
-        if args.log_json:
-            _append_materialize_log(args.log_json, "preview", selected_target, links)
+        if log_json:
+            _append_materialize_log(log_json, "preview", selected_target, links)
         proceed = questionary.confirm("执行上述操作吗？", default=False).ask()
         if not proceed:
             print("已取消。")
@@ -399,8 +376,8 @@ def main(argv=None):
         except MigrationError as e:
             print(f"执行失败：{e}")
             return 2
-        if args.log_json:
-            _append_materialize_log(args.log_json, "applied", selected_target, links)
+        if log_json:
+            _append_materialize_log(log_json, "applied", selected_target, links)
         print("完成。已将符号链接替换为数据副本（原数据保留）。")
         return 0
 
@@ -446,7 +423,7 @@ def main(argv=None):
                 selected_target,
                 new_target,
                 links,
-                dry_run=args.dry_run,
+                dry_run=dry_run,
                 conflict_strategy=conflict_strategy,
                 backup_path=backup_path,
                 data_root=data_root,
@@ -456,7 +433,7 @@ def main(argv=None):
                 selected_target,
                 new_target,
                 links,
-                dry_run=args.dry_run,
+                dry_run=dry_run,
                 conflict_strategy=conflict_strategy,
                 backup_path=backup_path,
                 data_root=data_root,
@@ -466,7 +443,7 @@ def main(argv=None):
         print(f"校验失败：{e}")
         return 2
 
-    if args.dry_run:
+    if dry_run:
         print("计划 (dry-run):")
         for line in plan:
             print(f"  • {line}")
@@ -474,10 +451,10 @@ def main(argv=None):
         curr_summary = fast_tree_summary(selected_target)
         new_summary = fast_tree_summary(new_target) if new_target.exists() else (0, 0)
         print(format_summary_pair(curr_summary, new_summary))
-        if args.log_json:
+        if log_json:
             if operation_kind == "move-only":
                 _append_move_only_log(
-                    args.log_json,
+                    log_json,
                     "preview",
                     selected_target,
                     new_target,
@@ -486,7 +463,7 @@ def main(argv=None):
                 )
             else:
                 _append_json_log(
-                    args.log_json,
+                    log_json,
                     "preview",
                     selected_target,
                     new_target,
@@ -524,10 +501,10 @@ def main(argv=None):
         except MigrationError as e:
             print(f"执行失败：{e}")
             return 2
-        if args.log_json:
+        if log_json:
             if operation_kind == "move-only":
                 _append_move_only_log(
-                    args.log_json,
+                    log_json,
                     "applied",
                     selected_target,
                     new_target,
@@ -536,7 +513,7 @@ def main(argv=None):
                 )
             else:
                 _append_json_log(
-                    args.log_json,
+                    log_json,
                     "applied",
                     selected_target,
                     new_target,
@@ -557,6 +534,177 @@ def main(argv=None):
     else:
         print("完成。已验证符号链接指向新目标。")
     return 0
+
+
+@app.callback(invoke_without_command=True)
+def app_callback(
+    ctx: typer.Context,
+    data_root: Optional[str] = typer.Option(
+        None,
+        "--data-root",
+        help="Data directory containing real folders (default: ~/Developer/Data)",
+    ),
+    scan_roots: Optional[List[str]] = typer.Option(
+        None,
+        "--scan-roots",
+        help="Roots to scan for symlink sources (default: ~/Developer/Cloud/Dropbox/-Code-/Scripts)",
+    ),
+    link_mode: Optional[str] = typer.Option(
+        None,
+        "--link-mode",
+        case_sensitive=False,
+        help="relative|absolute symlinks or inline copies; omit to choose interactively",
+    ),
+    relative_only: bool = typer.Option(
+        False,
+        "--relative",
+        help="Rewrite found symlinks to relative paths without moving their targets",
+    ),
+    dry_run: bool = typer.Option(
+        True,
+        "--dry-run/--apply",
+        help="Preview actions without making changes (default: dry-run)",
+        show_default=True,
+    ),
+    log_json: Optional[Path] = typer.Option(
+        None,
+        "--log-json",
+        help="Append JSON Lines records of planned/applied actions to the given file",
+    ),
+) -> None:
+    """Default command: run the interactive Questionary flow."""
+    if ctx.invoked_subcommand:
+        return
+
+    exit_code = _run_interactive_flow(
+        data_root_option=data_root,
+        scan_roots_option=scan_roots,
+        link_mode_option=link_mode,
+        relative_only=relative_only,
+        dry_run=dry_run,
+        log_json=log_json,
+    )
+    raise typer.Exit(code=exit_code)
+
+
+@app.command("status")
+def status_command(
+    project_root: Path = typer.Option(
+        ..., "--project-root", "-p", help="Project root containing the data directory"
+    ),
+    data_root: Path = typer.Option(
+        DEFAULT_DATA_ROOT,
+        "--data-root",
+        "-d",
+        help="Data root used to resolve targets (default: ~/Developer/Data)",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output status as JSON (machine-readable)",
+    ),
+) -> None:
+    """Show current data link mode for a project."""
+    project_root = Path(project_root).expanduser().resolve()
+    data_root = Path(data_root).expanduser().resolve()
+
+    try:
+        status = get_project_data_status(project_root, data_root)
+    except Exception as exc:  # pragma: no cover - safety net
+        typer.echo(f"Error: {exc}")
+        raise typer.Exit(1)
+
+    if json_output:
+        payload = {
+            "project_root": str(status.project_root),
+            "data_path": str(status.data_path) if status.data_path else None,
+            "mode": status.mode,
+            "link_text": status.link_text,
+            "target_path": str(status.target_path) if status.target_path else None,
+            "shared_with": [str(p) for p in status.shared_with],
+        }
+        typer.echo(json.dumps(payload, ensure_ascii=False))
+        raise typer.Exit(0)
+
+    lines = [
+        f"Project: {status.project_root}",
+        f"Data path: {status.data_path}",
+        f"Mode: {status.mode}",
+    ]
+    if status.target_path:
+        lines.append(f"Target: {status.target_path}")
+    if status.shared_with:
+        lines.append(
+            "Shared with: " + ", ".join(str(p) for p in status.shared_with)
+        )
+    typer.echo("\n".join(lines))
+    raise typer.Exit(0)
+
+
+@app.command("set-mode")
+def set_mode_command(
+    project_root: Path = typer.Option(
+        ..., "--project-root", "-p", help="Project root containing the data directory"
+    ),
+    data_root: Path = typer.Option(
+        DEFAULT_DATA_ROOT,
+        "--data-root",
+        "-d",
+        help="Data root used to resolve targets (default: ~/Developer/Data)",
+    ),
+    mode: LinkMode = typer.Option(
+        ...,
+        "--mode",
+        "-m",
+        case_sensitive=False,
+        help="Target mode: relative | absolute | inline",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview changes without applying",
+    ),
+) -> None:
+    """Set the data link mode for a project."""
+    project_root = Path(project_root).expanduser().resolve()
+    data_root = Path(data_root).expanduser().resolve()
+    mode = mode.lower()  # type: ignore[arg-type]
+
+    try:
+        status = set_project_data_mode(
+            project_root=project_root,
+            data_root=data_root,
+            mode=mode,  # type: ignore[arg-type]
+            dry_run=dry_run,
+        )
+    except MigrationError as exc:
+        typer.echo(f"Error: {exc}")
+        raise typer.Exit(1)
+    except Exception as exc:  # pragma: no cover - safety net
+        typer.echo(f"Error: {exc}")
+        raise typer.Exit(1)
+
+    if dry_run:
+        typer.echo(
+            f"[DRY-RUN] Would set data mode to {mode} for project {project_root}"
+        )
+    else:
+        typer.echo(f"Set data mode to {status.mode} for project {project_root}")
+    raise typer.Exit(0)
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    try:
+        return app(
+            args=list(argv),
+            prog_name="lk",
+            standalone_mode=False,
+        )
+    except typer.Exit as exc:  # Typer/Click Exit (standalone_mode=False)
+        return exc.exit_code
+    except SystemExit as exc:  # pragma: no cover - click uses SystemExit
+        return exc.code
 
 
 if __name__ == "__main__":  # pragma: no cover

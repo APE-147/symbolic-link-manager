@@ -12,10 +12,10 @@ authors = [{name = "niceday"}]
 dependencies = [
   "questionary>=2.0.1,<3.0",
   "PyYAML>=6.0",
+  "typer[all]>=0.9.0",
 ]
 
 [project.scripts]
-slm = "slm.cli:main"
 lk = "slm.cli:main"
 
 [tool.setuptools]

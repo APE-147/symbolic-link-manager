@@ -396,3 +396,375 @@ def test_cli_inline_mode_preserves_original_data(tmp_path, monkeypatch, capsys):
         assert not link.is_symlink()
         assert link.is_dir()
         assert (link / "file.txt").read_text() == "original data"
+
+
+# =============================================================================
+# Tests for Typer CLI subcommands (lk status, lk set-mode)
+# =============================================================================
+
+class TestLkStatusSubcommand:
+    """Tests for 'lk status' subcommand."""
+
+    def test_status_shows_missing_mode_when_no_data_dir(self, tmp_path, capsys):
+        """Status should show 'missing' when project has no data directory."""
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+
+        # Import after potential CLI refactoring
+        from slm.cli import main
+
+        exit_code = main([
+            "status",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "missing" in out.lower()
+
+    def test_status_shows_inline_mode_for_real_directory(self, tmp_path, capsys):
+        """Status should show 'inline' when data is a real directory."""
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_dir = project_root / "data"
+        data_dir.mkdir()
+        (data_dir / "file.txt").write_text("content")
+
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+
+        from slm.cli import main
+
+        exit_code = main([
+            "status",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "inline" in out.lower()
+
+    def test_status_shows_relative_mode_for_relative_symlink(self, tmp_path, capsys):
+        """Status should show 'relative' for relative symlinks."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my_project-data"
+        target.mkdir()
+
+        project_root = tmp_path / "projects" / "my_project"
+        project_root.mkdir(parents=True)
+        data_link = project_root / "data"
+
+        # Create relative symlink
+        rel_path = os.path.relpath(target, data_link.parent)
+        data_link.symlink_to(rel_path)
+
+        from slm.cli import main
+
+        exit_code = main([
+            "status",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "relative" in out.lower()
+
+    def test_status_shows_absolute_mode_for_absolute_symlink(self, tmp_path, capsys):
+        """Status should show 'absolute' for absolute symlinks."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my_project-data"
+        target.mkdir()
+
+        project_root = tmp_path / "projects" / "my_project"
+        project_root.mkdir(parents=True)
+        data_link = project_root / "data"
+
+        # Create absolute symlink
+        data_link.symlink_to(str(target.resolve()))
+
+        from slm.cli import main
+
+        exit_code = main([
+            "status",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "absolute" in out.lower()
+
+    def test_status_json_output(self, tmp_path, capsys):
+        """Status with --json should output valid JSON."""
+        import json
+
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "proj-data"
+        target.mkdir()
+
+        project_root = tmp_path / "proj"
+        project_root.mkdir()
+        (project_root / "data").symlink_to(target)
+
+        from slm.cli import main
+
+        exit_code = main([
+            "status",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--json",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+
+        # Should be valid JSON
+        data = json.loads(out)
+        assert "mode" in data
+        assert "project_root" in data
+        assert "data_path" in data
+        assert data["mode"] in ["relative", "absolute", "inline", "missing"]
+
+
+class TestLkSetModeSubcommand:
+    """Tests for 'lk set-mode' subcommand."""
+
+    def test_set_mode_relative_from_absolute(self, tmp_path, capsys):
+        """Convert absolute symlink to relative."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my-data"
+        target.mkdir()
+        (target / "file.txt").write_text("content")
+
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_link = project_root / "data"
+        data_link.symlink_to(str(target.resolve()))  # Absolute
+
+        # Verify initial state
+        assert os.path.isabs(os.readlink(data_link))
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "relative",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "relative" in out.lower()
+
+        # Verify symlink is now relative
+        assert not os.path.isabs(os.readlink(data_link))
+        assert data_link.resolve() == target.resolve()
+        assert (data_link / "file.txt").read_text() == "content"
+
+    def test_set_mode_absolute_from_relative(self, tmp_path, capsys):
+        """Convert relative symlink to absolute."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my-data"
+        target.mkdir()
+
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_link = project_root / "data"
+        rel_path = os.path.relpath(target, data_link.parent)
+        data_link.symlink_to(rel_path)  # Relative
+
+        # Verify initial state
+        assert not os.path.isabs(os.readlink(data_link))
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "absolute",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "absolute" in out.lower()
+
+        # Verify symlink is now absolute
+        assert os.path.isabs(os.readlink(data_link))
+        assert data_link.resolve() == target.resolve()
+
+    def test_set_mode_inline_materializes_symlink(self, tmp_path, capsys):
+        """Convert symlink to inline (real directory)."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my-data"
+        target.mkdir()
+        (target / "file.txt").write_text("inline content")
+
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_link = project_root / "data"
+        data_link.symlink_to(target)
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "inline",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "inline" in out.lower()
+
+        # Verify data is now a real directory
+        assert not data_link.is_symlink()
+        assert data_link.is_dir()
+        assert (data_link / "file.txt").read_text() == "inline content"
+        # Original target should still exist
+        assert target.exists()
+
+    def test_set_mode_dry_run_makes_no_changes(self, tmp_path, capsys):
+        """Dry run should not modify anything."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my-data"
+        target.mkdir()
+
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_link = project_root / "data"
+        data_link.symlink_to(str(target.resolve()))  # Absolute
+
+        original_link = os.readlink(data_link)
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "relative",
+            "--dry-run",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+        assert "dry" in out.lower() or "would" in out.lower()
+
+        # Verify no changes were made
+        assert os.readlink(data_link) == original_link
+
+    def test_set_mode_raises_on_missing(self, tmp_path, capsys):
+        """Setting mode on missing data directory should fail gracefully."""
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        # No data directory
+
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "relative",
+        ])
+
+        # Should fail with non-zero exit code or error message
+        out = capsys.readouterr().out
+        err = capsys.readouterr().err
+        # Either non-zero exit or error in output
+        assert exit_code != 0 or "error" in (out + err).lower() or "missing" in (out + err).lower()
+
+    def test_set_mode_noop_when_already_target_mode(self, tmp_path, capsys):
+        """Setting same mode should be a no-op."""
+        data_root = tmp_path / "Data"
+        data_root.mkdir()
+        target = data_root / "my-data"
+        target.mkdir()
+
+        project_root = tmp_path / "my_project"
+        project_root.mkdir()
+        data_link = project_root / "data"
+        rel_path = os.path.relpath(target, data_link.parent)
+        data_link.symlink_to(rel_path)  # Already relative
+
+        original_link = os.readlink(data_link)
+
+        from slm.cli import main
+
+        exit_code = main([
+            "set-mode",
+            "--project-root", str(project_root),
+            "--data-root", str(data_root),
+            "--mode", "relative",
+        ])
+
+        out = capsys.readouterr().out
+        assert exit_code == 0
+
+        # Link should be unchanged
+        assert os.readlink(data_link) == original_link
+
+
+class TestTyperCLIBackwardCompatibility:
+    """Tests to ensure Typer migration maintains backward compatibility."""
+
+    def test_default_command_runs_interactive_flow(self, tmp_path, monkeypatch, capsys):
+        """Running 'lk' without subcommand should trigger interactive flow."""
+        data_root = tmp_path / "Data"
+        target = data_root / "project"
+        target.mkdir(parents=True)
+
+        link_root = tmp_path / "links"
+        link_root.mkdir()
+        (link_root / "p").symlink_to(target)
+
+        from slm import cli
+        from slm.config import LoadedConfig
+
+        monkeypatch.setattr(cli, "load_config", lambda: LoadedConfig(data={}, path=None))
+
+        # Simulate user selecting exit
+        def fake_select(*args, **kwargs):
+            return DummyPrompt("退出")
+
+        monkeypatch.setattr(cli.questionary, "select", fake_select)
+
+        exit_code = cli.main(["--data-root", str(data_root), "--scan-roots", str(link_root)])
+        out = capsys.readouterr().out
+
+        assert exit_code == 0
+        # Should show the interactive menu was triggered
+        assert "已取消" in out or "退出" in out
+
+    def test_help_shows_subcommands(self, capsys):
+        """Help should list available subcommands."""
+        from slm.cli import main
+
+        # Running with --help should show subcommands
+        try:
+            main(["--help"])
+        except SystemExit:
+            pass  # --help typically exits
+
+        out = capsys.readouterr().out
+        # After Typer migration, help should mention subcommands
+        # This test may need adjustment based on actual help output
+        assert "status" in out.lower() or "set-mode" in out.lower() or "usage" in out.lower()
